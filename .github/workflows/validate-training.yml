@@ -20,7 +20,13 @@ jobs:
           node-version: 22.23.2
           cache: npm
       - name: Install POSIX test prerequisites
-        run: sudo apt-get update && sudo apt-get install -y python3 zsh
+        timeout-minutes: 3
+        run: |
+          python3 --version
+          if ! command -v zsh >/dev/null; then
+            sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+            sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y zsh
+          fi
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
