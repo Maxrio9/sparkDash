@@ -1,3 +1,4 @@
+// Modified by Maxrio9: isolate opt-in training collectors in server fixtures (2026).
 import path from "node:path";
 
 /**
@@ -48,6 +49,10 @@ export function isolatedConfigEnv(dir) {
     // Tests must not contact an operator's opt-in inference activity source.
     SPARKDASH_INFERENCE_ACTIVITY_URL: "",
     SPARKDASH_INFERENCE_ACTIVITY_LABELS: "",
+    // Never read the operator's training files from a server test.
+    TRAINING_PROGRESS_ENABLED: "0",
+    TRAINING_PROGRESS_ROOTS: "[]",
+    TRAINING_PROGRESS_ROOTS_BY_UNIT: "{}",
     ...Object.fromEntries(
       CONFIG_PATH_VARS.map((name) => [
         name,

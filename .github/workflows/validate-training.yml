@@ -1,0 +1,27 @@
+# Copyright 2026 Maxrio9. SPDX-License-Identifier: Apache-2.0
+name: Validate training fork
+
+on:
+  push:
+    branches: [main, training-module]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.2
+          cache: npm
+      - name: Install POSIX test prerequisites
+        run: sudo apt-get update && sudo apt-get install -y python3 zsh
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test

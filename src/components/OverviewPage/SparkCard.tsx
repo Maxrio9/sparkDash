@@ -1,3 +1,4 @@
+// Modified by Maxrio9 in 2026: optional read-only training progress module.
 import { PlatformBadge, gapFor, honestValue } from "../ui/platform";
 import { RuntimeChips } from "../ui/RuntimeChips";
 import { memo, useState, type ReactNode } from "react";
@@ -19,6 +20,9 @@ import { VramBreakdownBar } from "../ui/VramBreakdownBar";
 import { HEADROOM_THRESHOLDS_MB, computeVramBreakdown, memoryModelFor, type VramBreakdownContext } from "../../shared/vramBreakdown";
 import { ImageIcon, PowerOnIcon } from "../ui/icons";
 import { formatCtx } from "./fleetStats";
+import type { HostEvaluation } from "./useFinetuneProgress";
+import { EvaluationSummary } from "./EvaluationSummary";
+import "../../styles/device-evaluations.css";
 import { ModelLauncher } from "./ModelLauncher";
 
 type Unit = "celsius" | "fahrenheit";
@@ -111,6 +115,7 @@ function GpuCardBar({ card, fmtTemp }: { card: GpuDevice; fmtTemp: (c: number) =
 function SparkCardImpl({
   spark,
   headSpark,
+  evaluationJobs,
   vramContext = null,
   temperatureUnit,
   onSelect,
@@ -118,12 +123,15 @@ function SparkCardImpl({
   spark: SparkSnapshot;
   /** The head this worker serves for (workers only). */
   headSpark?: SparkSnapshot | null;
+  /** Current evaluations on this device, independent of inference endpoints. */
+  evaluationJobs?: HostEvaluation[];
   /** Breakdown inputs (see `vramContextFor`); null keeps the plain VRAM bar. */
   vramContext?: VramBreakdownContext | null;
   temperatureUnit: Unit;
   onSelect?: (id: string) => void;
 }) {
   const { t } = useTranslation("overview");
+  const { t: tTraining } = useTranslation("training");
   const gpu = spark.metrics.gpu;
   const um = spark.metrics.unifiedMemory;
   const online = spark.online;
@@ -131,6 +139,10 @@ function SparkCardImpl({
   const llmList = Array.isArray(spark.metrics.llm) ? spark.metrics.llm : [];
   const llmIdx = llmList.findIndex((l) => l.available);
   const llm = llmIdx >= 0 ? llmList[llmIdx] : null;
+  const evaluations = online ? evaluationJobs ?? [] : [];
+  const hasEvaluation = evaluations.length > 0;
+  const evaluationModels = [...new Set(evaluations.map((evaluation) => evaluation.model))];
+  const shownEvaluationModels = [...new Set(evaluations.slice(0, 2).map((evaluation) => evaluation.model))];
   const [wakeMsg, setWakeMsg] = useState<WakeMessage>(null);
   const [waking, setWaking] = useState(false);
 
@@ -264,7 +276,7 @@ function SparkCardImpl({
         ? t("card.vramInUseWithHolders", { holders: gpuHolders.join(", "), memory: formatMb(memUsed), usage: Math.round(usage) })
         : t("card.vramInUse", { memory: formatMb(memUsed), usage: Math.round(usage) })
       : null;
-  const showLauncher = role !== "worker" && !llm && !spark.llmMovedTo && spark.llmMonitoring !== false && spark.platform !== "windows";
+  const showLauncher = role !== "worker" && !llm && !hasEvaluation && !spark.llmMovedTo && spark.llmMonitoring !== false && spark.platform !== "windows";
 
   const showTps = role !== "worker" && !!llm;
   const isStrata = llm?.backend === "strata";
@@ -559,6 +571,16 @@ function SparkCardImpl({
               </div>
             </div>
           ) : null}
+          {hasEvaluation ? (
+            <div className="ov-device-evaluations" role="group" aria-label={tTraining("device.evaluation")}>
+              {evaluations.length > 1 ? <div className="eyebrow">{tTraining("device.running", { count: evaluations.length })}</div> : null}
+              {evaluations.slice(0, 2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} />)}
+              {evaluations.length > 2 ? <details className="ov-device-evaluations__more">
+                <summary>{tTraining("device.more", { count: evaluations.length - 2 })}</summary>
+                {evaluations.slice(2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} />)}
+              </details> : null}
+            </div>
+          ) : null}
           {chips}
           {/* Mac agent units report what is serving from the node's process table.
               null means this transport has no inventory: show nothing rather than
@@ -599,16 +621,19 @@ function SparkCardImpl({
               <code>{modelText}</code>
               {modelEyebrowRight ? <span className="ov-modelrow__ctx">{modelEyebrowRight}</span> : null}
             </div>
-          ) : (
+          ) : !hasEvaluation ? (
             // Nothing to show, but keep the row's height so Storage lines up across the cards.
             <div className="ov-modelrow ov-modelrow--empty" aria-hidden="true">
               <code>{"\u00a0"}</code>
             </div>
-          )}
+          ) : null}
+          {shownEvaluationModels.map((model) => <div className="ov-modelrow" key={model} title={tTraining("device.modelTitle", { model })}>
+            <code>{model}</code><span className="ov-modelrow__ctx">{tTraining("device.evaluating")}</span>
+          </div>)}
           {online && role !== "worker" && [...new Set([
             ...llmList.filter((entry) => entry.available).flatMap((entry) => entry.models?.length ? entry.models : entry.modelId ? [entry.modelId] : []),
             ...(spark.metrics.residentModels ?? []).map((entry) => entry.modelId),
-          ])].filter((name) => name !== modelText).map((name) => (
+          ])].filter((name) => name !== modelText && !evaluationModels.includes(name)).map((name) => (
             <div className="ov-modelrow" key={name} title={t("card.loadedModelTitle", { name })}>
               <code>{name}</code>
               <span className="ov-modelrow__ctx">{t("card.loaded")}</span>

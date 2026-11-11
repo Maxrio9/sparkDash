@@ -1,3 +1,4 @@
+# Modified by Maxrio9, 2026: include Python for optional training collectors.
 # ============================================================
 # sparkDash — Multi-DGX Spark Monitoring Dashboard
 # Dockerfile for arm64 (DGX Spark GB10 platform)
@@ -46,7 +47,7 @@ FROM ${NODE_IMAGE}
 
 # SSH client + sshpass for remote Sparks; util-linux provides nsenter for host GPU/net
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssh-client sshpass procps util-linux iproute2 \
+    openssh-client sshpass procps util-linux iproute2 python3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -1,3 +1,5 @@
+# Modified by Maxrio9, 2026: exclude public release staging artifacts.
+release/
 node_modules/
 dist/
 .env

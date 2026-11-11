@@ -1,3 +1,4 @@
+// Modified by Maxrio9 in 2026: optional read-only training progress module.
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AlertInstance, SparkSnapshot } from "../../api/types";
@@ -7,6 +8,8 @@ import { ShutdownAll } from "../ShutdownAll";
 import { FleetEnergyCard } from "./FleetEnergyCard";
 import { FleetAlertStrip } from "./FleetAlertStrip";
 import { FleetTokenTotals } from "./FleetTokenTotals";
+import { FinetuneProgressCard } from "./FinetuneProgressCard";
+import { useFinetuneProgress } from "./useFinetuneProgress";
 import { InferenceTrafficCard } from "./InferenceTrafficCard";
 import { FleetKpis, type KpiVisibility } from "./FleetKpis";
 import { ACTIVITY_ID, ENERGY_ID, TOKENS_ID } from "../../constants";
@@ -25,6 +28,7 @@ interface OverviewPageProps {
   showFleetEnergy?: boolean;
   /** Opt-in server capability; absent sources add no card or polling. */
   showInferenceActivity?: boolean;
+  showFinetuneProgress?: boolean;
   showFleetExceptions?: boolean;
   /** Alert notifications on: the exceptions strip lists `serverAlerts` instead of deriving its own. */
   alertsEnabled?: boolean;
@@ -50,6 +54,7 @@ export function OverviewPage({
   hideWorkers = false,
   showFleetEnergy = true,
   showInferenceActivity = false,
+  showFinetuneProgress = false,
   showFleetExceptions = false,
   alertsEnabled = false,
   serverAlerts = null,
@@ -63,6 +68,7 @@ export function OverviewPage({
   onNavigate,
 }: OverviewPageProps) {
   const { t } = useTranslation("overview");
+  const { snapshot: finetuneSnapshot, requestFailed: finetuneFailed, evaluationsBySpark } = useFinetuneProgress(showFinetuneProgress);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "online" | "offline" | "issues">("all");
   const withoutWorkers = useMemo(
@@ -190,6 +196,8 @@ export function OverviewPage({
     }
   }
 
+  const finetuneProgress = showFinetuneProgress
+    ? <FinetuneProgressCard snapshot={finetuneSnapshot} requestFailed={finetuneFailed} /> : null;
   if (withoutWorkers.length === 0 || (hideOffline && withoutWorkers.every((spark) => !spark.online))) {
     const allWorkersHidden = hideWorkers && sparks.length > 0 && withoutWorkers.length === 0;
     const allOffline = hideOffline && withoutWorkers.length > 0;
@@ -203,7 +211,7 @@ export function OverviewPage({
       : allOffline
         ? t("page.empty.allOfflineDetail")
         : t("page.empty.noSparksDetail");
-    return (
+    const emptyState = (
       <div className="panel ov mx-auto mt-16 max-w-md p-8 text-center">
         <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
           <ActivityIcon className="h-5 w-5" />
@@ -212,6 +220,8 @@ export function OverviewPage({
         <p className="mt-1 text-xs text-muted">{detail}</p>
       </div>
     );
+    return <div className="ov">{finetuneProgress}{emptyState}</div>;
+
   }
 
   const onlineCount = visibleSparks.filter((s) => s.online).length;
@@ -303,6 +313,7 @@ export function OverviewPage({
         </div>
       </div>
 
+      {finetuneProgress}
       <FleetAlertStrip
         sparks={sparks}
         onSelect={onSelectSpark}
@@ -346,6 +357,7 @@ export function OverviewPage({
               <SparkCard
                 key={spark.id}
                 spark={spark}
+                evaluationJobs={evaluationsBySpark[spark.id]}
                 headSpark={ctx?.head ?? null}
                 vramContext={ctx?.vram ?? null}
                 temperatureUnit={temperatureUnit}

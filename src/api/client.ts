@@ -1,3 +1,4 @@
+// Modified by Maxrio9 in 2026: optional read-only training progress module.
 import type {
   AlertChannel,
   AlertTestResult,
@@ -15,6 +16,7 @@ import type {
   FleetEnergy,
   HealthResponse,
   InferenceActivity,
+  FinetuneProgress,
   HermesBatchUpdateResponse,
   GpuClockStatus,
   FleetGpuClockResult,
@@ -975,4 +977,10 @@ export function getGpuHistory(sparkId: string, windowMs: number): Promise<GpuHis
 /** The 48 h / 30 d unit history (Settings → Metrics history; `{ enabled: false }` while off). */
 export function getUnitHistory(sparkId: string, range: MetricsHistoryRange): Promise<MetricsHistoryResponse> {
   return apiFetch<MetricsHistoryResponse>(`/api/sparks/${encodeURIComponent(sparkId)}/history?range=${range}`);
+}
+
+export function fetchTrainingProgress(signal: AbortSignal): Promise<FinetuneProgress> {
+  return apiFetch("/api/training-progress", {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+  });
 }

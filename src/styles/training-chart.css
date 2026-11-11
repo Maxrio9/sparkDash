@@ -1,0 +1,70 @@
+.ov-evaluation-chart {
+  min-width: 0;
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+.ov-evaluation-chart__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.ov-evaluation-chart__head h5 { margin: 0; color: var(--color-text-strong); font-size: 12px; font-weight: 600; }
+.ov-evaluation-chart__head > span,
+.ov-evaluation-chart__objective,
+.ov-evaluation-chart__note,
+.ov-evaluation-chart__readout,
+.ov-evaluation-chart__table { color: var(--color-muted-strong); font-size: 11px; }
+.ov-evaluation-chart__objective { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; line-height: 1.4; }
+.ov-evaluation-chart__objective > span:first-child { color: var(--color-text); }
+.ov-evaluation-chart__best { overflow-wrap: anywhere; }
+.ov-evaluation-chart__legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 0 4px; }
+.ov-evaluation-chart__interval-toggle { display: inline-flex; align-items: center; gap: 5px; margin: 3px 0; color: var(--color-muted-strong); font-size: 11px; cursor: pointer; }
+.ov-evaluation-chart__interval-toggle input { margin: 0; accent-color: var(--color-accent); }
+.ov-evaluation-chart__interval-toggle input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ov-evaluation-chart__series {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.ov-evaluation-chart__series[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.ov-evaluation-chart__series > span { width: 18px; border-top: 2px solid var(--score-color); }
+.ov-evaluation-chart__series.is-baseline > span { border-top-style: dashed; }
+.ov-evaluation-chart__series--0 { --score-color: var(--color-info); --score-dash: none; }
+.ov-evaluation-chart__series--1 { --score-color: var(--color-accent); --score-dash: 7 3; }
+.ov-evaluation-chart__series--2 { --score-color: var(--color-success); --score-dash: 3 2; }
+.ov-evaluation-chart__series--3 { --score-color: var(--color-warning); --score-dash: 9 2 2 2; }
+.ov-evaluation-chart__series--4 { --score-color: var(--color-text-strong); --score-dash: 2 3; }
+.ov-evaluation-chart__series--5 { --score-color: var(--color-muted-strong); --score-dash: 10 4; }
+.ov-evaluation-chart__plot { display: block; max-width: 100%; overflow: visible; }
+.ov-evaluation-chart__grid { stroke: var(--color-border); stroke-dasharray: 2 4; }
+.ov-evaluation-chart__tick { fill: var(--color-muted); font: 10px var(--font-mono, monospace); }
+.ov-evaluation-chart__line { fill: none; stroke: var(--score-color); stroke-width: 1.8; stroke-dasharray: var(--score-dash); stroke-linejoin: round; }
+.ov-evaluation-chart__baseline { stroke: var(--score-color); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .8; }
+.ov-evaluation-chart__interval { fill: none; stroke: var(--score-color); stroke-width: 1; opacity: .45; }
+.ov-evaluation-chart__point { fill: var(--score-color); stroke: var(--color-surface-elevated); stroke-width: 1.5; cursor: pointer; }
+.ov-evaluation-chart__point:focus-visible { outline: none; stroke: var(--color-text-strong); stroke-width: 2.5; }
+.ov-evaluation-chart__series:focus-visible,
+.ov-evaluation-chart__select select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ov-evaluation-chart__readout { min-height: 30px; line-height: 1.4; overflow-wrap: anywhere; }
+.ov-evaluation-chart__note { margin: 5px 0 0; opacity: .85; }
+.ov-evaluation-chart__select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--color-muted); }
+.ov-evaluation-chart__select select { max-width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text); font: inherit; }
+.ov-evaluation-chart__table { margin-top: 9px; }
+.ov-evaluation-chart__table summary { cursor: pointer; }
+.ov-evaluation-chart__table-scroll { max-width: 100%; overflow-x: auto; }
+.ov-evaluation-chart__table table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10px; text-align: left; }
+.ov-evaluation-chart__table caption { text-align: left; margin-bottom: 5px; }
+.ov-evaluation-chart__table th,
+.ov-evaluation-chart__table td { padding: 5px 6px; border-top: 1px solid var(--color-border); white-space: nowrap; }
+.ov-evaluation-chart__table th { font-weight: 500; }

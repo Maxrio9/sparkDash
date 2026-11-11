@@ -1,0 +1,26 @@
+.ov-device-evaluations { min-width: 0; }
+.ov-device-evaluation { min-width: 0; margin-top: 9px; }
+.ov-device-evaluation + .ov-device-evaluation {
+  border-top: 1px solid var(--color-border);
+  padding-top: 9px;
+}
+.ov-device-evaluation__heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 3px 10px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ov-device-evaluation__heading b { color: var(--color-text-strong); font-weight: 550; }
+.ov-device-evaluation__heading > span { color: var(--color-muted-strong); }
+.ov-device-evaluation__identity {
+  margin: 3px 0 6px;
+  color: var(--color-muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.ov-device-evaluation__health { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; margin: 5px 0; color: var(--color-muted-strong); font-size: 10px; overflow-wrap: anywhere; }
+.ov-device-evaluations__more { margin-top: 9px; color: var(--color-muted-strong); font-size: 11px; }
+.ov-device-evaluations__more > summary { cursor: pointer; }

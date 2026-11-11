@@ -1,3 +1,5 @@
+// Modified by Maxrio9 in 2026: per-device training evaluation regressions.
+import type { HostEvaluation } from "./useFinetuneProgress";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -215,5 +217,111 @@ describe("SparkCard effective prefill rate", () => {
     Object.assign(spark.metrics.llm[0], { prefillTps: 0, perStreamPrefillTps: null });
     const { container } = render(<SparkCard spark={spark} temperatureUnit="celsius" />);
     expect(container.textContent).not.toContain("incl. cached tokens");
+  });
+});
+describe("per-device evaluation", () => {
+  const desktopEvaluation = {
+    model: "Example-7B", label: "Main objective · Step 1,324",
+    promptsPerMinute: 6.2, promptConcurrency: 1,
+  };
+
+  it("keeps worker activity, resource identity and progress-health warnings visible in the device tile", () => {
+    const evaluationJobs: HostEvaluation[] = [{ ...desktopEvaluation, id: "worker-eval",
+      activity: { kind: "transferring", label: "Transferring checkpoint" },
+      resources: [{ kind: "gpu", id: "GPU-a", label: "GPU 2", scope: "assigned" }],
+      dependencies: [{ id: "checkpoint", label: "Checkpoint 4000", state: "waiting" }],
+      health: { state: "unresponsive", detail: "Worker heartbeat is overdue." },
+    }];
+    const { container } = render(<SparkCard spark={makeSpark("gpu-lab")} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
+    const evaluation = container.querySelector('[aria-label="Evaluation"]');
+    expect(evaluation?.textContent).toContain("Transferring checkpoint");
+    expect(evaluation?.textContent).toContain("Assigned GPU 2");
+    expect(evaluation?.textContent).toContain("Waiting for: Checkpoint 4000");
+    expect(evaluation?.textContent).toContain("Heartbeat overdue");
+    expect(evaluation?.textContent).toContain("Worker heartbeat is overdue.");
+  });
+
+  it("shows evaluation metrics and model without treating scoring as inference", async () => {
+    const spark = makeSpark("desktop");
+    spark.metrics.llm = [];
+    spark.metrics.gpu!.processes = [{ pid: 1, name: "evaluate.py", vramMB: 3000 }];
+    const { container } = render(<SparkCard spark={spark} evaluationJobs={[desktopEvaluation]} temperatureUnit="celsius" />);
+    await act(async () => {});
+
+    const metrics = container.querySelector('[aria-label="Evaluation"]');
+    expect(metrics?.textContent).toContain("6.2 prompts/min");
+    expect(metrics?.textContent).toContain("1 prompt at a time");
+    expect(metrics?.textContent).toContain(desktopEvaluation.label);
+    expect(container.querySelector(".ov-modelrow")?.textContent).toContain(desktopEvaluation.model);
+    expect(container.querySelector(".ov-launch")).toBeNull();
+    expect(container.textContent).not.toContain("Decode");
+    expect(container.textContent).not.toContain("Prefill");
+  });
+
+  it("keeps the monitored model visible while evaluation speed is still being measured", async () => {
+    const spark = makeSpark("desktop");
+    const evaluation = { ...desktopEvaluation, promptsPerMinute: undefined };
+    const { container } = render(<SparkCard spark={spark} evaluationJobs={[evaluation]} temperatureUnit="celsius" />);
+    await act(async () => {});
+
+    const metrics = container.querySelector('[aria-label="Evaluation"]');
+    expect(metrics?.textContent).toContain("— prompts/min");
+    expect(container.textContent).toContain("Decode");
+    const models = [...container.querySelectorAll(".ov-modelrow code")].map((row) => row.textContent);
+    expect(models).toEqual([spark.metrics.llm[0].modelId, evaluation.model]);
+  });
+
+  it("shows independent evaluation jobs alongside a monitored model on the same device", () => {
+    const spark = makeSpark("training-and-evaluation");
+    const evaluationJobs: HostEvaluation[] = [
+      { id: "sft:reporter:validation", model: "SFT model", campaign: "Medical SFT", label: "Validation", completed: 20, total: 100,
+        unit: "prompts", promptsPerMinute: 5, promptConcurrency: 2 },
+      { id: "dpo:reporter:validation", model: "DPO model", campaign: "Preference alignment", label: "Validation", completed: 40, total: 200,
+        unit: "prompts", promptsPerMinute: 7, promptConcurrency: 3 },
+    ];
+    const { container } = render(<SparkCard spark={spark} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
+    const evaluation = container.querySelector('[aria-label="Evaluation"]');
+    expect(evaluation?.textContent).toContain("2 evaluations running");
+    expect(evaluation?.textContent).toContain("Medical SFT · SFT model");
+    expect(evaluation?.textContent).toContain("Preference alignment · DPO model");
+    expect(evaluation?.textContent).toContain("20 / 100 prompts");
+    expect(evaluation?.textContent).toContain("40 / 200 prompts");
+    expect(evaluation?.textContent).toContain("5.0 prompts/min");
+    expect(evaluation?.textContent).toContain("7.0 prompts/min");
+    expect(evaluation?.textContent).not.toContain("12.0 prompts/min");
+    expect(container.textContent).toContain("Decode");
+    expect(container.querySelector(".ov-modelrow")?.textContent).toContain(spark.metrics.llm[0].modelId);
+    expect(container.querySelector(".ov-launch")).toBeNull();
+  });
+
+  it.each(["batches", null])("bounds the compact job list and preserves evaluation unit %s in the expanded list", (unit) => {
+    const spark = makeSpark("gpu-lab");
+    const evaluationJobs: HostEvaluation[] = [
+      { id: "one", model: "Model 1", label: "Scoring one", promptsPerMinute: 1 },
+      { id: "two", model: "Model 2", label: "Scoring two", promptsPerMinute: 2 },
+      { id: "vision", model: "Vision model", campaign: "Image classification", label: "Validation images", completed: 25, total: 100,
+        unit, metrics: [{ label: "Throughput", value: 54, unit: "images/s" }] },
+    ];
+    const { container } = render(<SparkCard spark={spark} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
+    const evaluation = container.querySelector('[aria-label="Evaluation"]');
+    expect(evaluation?.querySelectorAll(":scope > .ov-device-evaluation")).toHaveLength(2);
+    const more = evaluation?.querySelector("details");
+    expect(more?.open).toBe(false);
+    expect(more?.querySelector("summary")?.textContent).toBe("More evaluations (1)");
+    act(() => { more!.open = true; });
+    expect(more?.textContent).toContain("Image classification · Vision model");
+    expect(more?.textContent).toContain(`25 / 100${unit ? ` ${unit}` : ""}`);
+    expect(more?.textContent).toContain("Throughput 54 images/s");
+    expect(more?.textContent).not.toContain("prompts/min");
+    const progress = more?.querySelector<HTMLProgressElement>("progress");
+    expect([progress?.value, progress?.max]).toEqual([25, 100]);
+  });
+
+  it("keeps evaluation available on worker devices and hides all jobs on an offline device", () => {
+    const evaluationJobs = [{ ...desktopEvaluation, id: "worker-eval" }];
+    const { container, root } = render(<SparkCard spark={worker()} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
+    expect(container.querySelector('[aria-label="Evaluation"]')?.textContent).toContain(desktopEvaluation.label);
+    act(() => root.render(<SparkCard spark={{ ...worker(), online: false }} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />));
+    expect(container.querySelector('[aria-label="Evaluation"]')).toBeNull();
   });
 });

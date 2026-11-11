@@ -1,5 +1,7 @@
 # Codebase overview
 
+<!-- Modified by Maxrio9 in 2026: optional training-module architecture and validation. -->
+
 sparkDash monitors a fleet of NVIDIA DGX Sparks and other supported hosts. Every configured unit has one registry entry and a shared `SparkMonitor` instance; hardware and LLM collectors are parameterized by that unit. Local collectors read host metrics, while remote collectors use SSH or the platform-specific collection paths.
 
 ## Stack and entry points
@@ -18,6 +20,7 @@ The package uses ESM throughout. `server/index.js` runs directly in Node and cre
 | `server/powermeter/` | Opt-in external power meters: provider base class and registry, polling, reconciliation with the meter's own history. Wall power is recorded by `server/energy/` (docs/POWER-METERS.md) |
 | `server/health/`, `server/alerts/`, `server/events/` | Findings, optional notifications and bounded activity history |
 | `server/llmlaunch/`, `server/tooleval/`, `server/gpuclock/` | Model launcher jobs, tool evaluation and GPU-clock management |
+| `server/training/` | Opt-in read-only training providers, bounded artifact discovery, progress health and checkpoint-comparison contract; see [module guide](server/training/README.md) |
 | `server/prices/` | Opt-in hosted-model price catalog and offline cache |
 | `server/apiKeys/`, `scripts/apikeys-bridge/` | Opt-in read-only API Keys views and the reference host bridge they call over a unix socket |
 | `src/api/` | API clients and browser-facing data types |
@@ -63,3 +66,13 @@ Keep this overview synchronized when module boundaries, scripts, architecture or
 ## Apple Silicon units
 
 `kind: "mac"` selects `MacSystemCollector` (SSH) or `MacAgentCollector` (optional on-device agent). Missing temperatures and privileged power readings remain unavailable. `agents/macos/README.md` documents the read path, optional privileged collector and opt-in runtime control.
+
+## Optional training module
+
+`TRAINING_PROGRESS_ENABLED=1` enables `server/training/`; the default is off. Its own route registration exposes `GET /api/training-progress`, and disabled operation does not start training polling. The provider registry imports trusted modules from `server/training/providers/`. Each returns runs containing independent reporter sources and preparation, training and evaluation stages; schema normalization, expiry and health derivation happen before the browser receives data. Run identity, reporter identity and configured device identity are separate, so training and evaluation can share a device, span devices or belong to independent experiments.
+
+The bundled artifact provider reads only explicitly configured roots (`TRAINING_PROGRESS_ROOTS`, optionally `TRAINING_PROGRESS_ROOTS_BY_UNIT`) using a bounded Python probe. It reads metadata and same-user Linux process identity, never model weights or executable training objects. Saved logs alone do not establish a live trainer. Collector failures are isolated per host and provider; expired data becomes unknown/stale. Custom trusted providers can adapt other transports or systems without changing the UI.
+
+The Overview consumes this module through its capability flag and polling hook. Stage selection is local UI state scoped by run; chart grouping preserves metric, unit, dataset, settings, objective and checkpoint coordinate. Per-device evaluation summaries group by configured device ID. Health cadence is explicitly declared, and absent measurements remain unknown. Monitoring does not mutate training jobs, set evaluation concurrency or allocate resources.
+
+`examples/training/` contains synthetic progress and a standard-library Python reporter for custom loops. Native artifact and topology tests use temporary fixtures; the Python collector tests are part of module validation. Do not add production run artifacts, private collectors, device configuration or real evaluation results to this repository.

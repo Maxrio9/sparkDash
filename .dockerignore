@@ -1,3 +1,5 @@
+# Modified by Maxrio9, 2026: omit local release outputs from image context.
+release
 node_modules
 dist
 .git

@@ -1,3 +1,4 @@
+// Modified by Maxrio9 in 2026: optional read-only training progress module.
 // ─── Spark config (matches server/sparks.json) ────────────
 export interface SparkConfig {
   id: string;
@@ -1194,7 +1195,113 @@ export interface InferenceActivity {
   overflowed: boolean;
 }
 
+export interface EvaluationComparison {
+  metric: string;
+  metricLabel: string;
+  value: number;
+  unit?: string;
+  seriesId: string;
+  seriesLabel: string;
+  checkpoint?: number;
+  checkpointUnit?: string;
+  baseline?: boolean;
+  /** Identifies the same evaluation corpus; different cohorts must not be joined. */
+  cohortId?: string;
+  lower?: number;
+  upper?: number;
+  goal?: "maximize" | "minimize" | "target" | "observe";
+  target?: number;
+  contextId?: string;
+  contextLabel?: string;
+}
+
+export interface TrainingResource {
+  kind: "cpu" | "gpu" | "accelerator";
+  id: string;
+  label?: string;
+  scope?: "assigned" | "visible" | "affinity";
+}
+
+export interface TrainingActivity {
+  kind: string;
+  label: string;
+  detail?: string;
+  since?: number;
+}
+
+export interface TrainingDependency {
+  id: string;
+  label: string;
+  state: "waiting" | "ready" | "failed" | "unknown";
+}
+
+export interface TrainingProgressHealth {
+  state: "healthy" | "waiting" | "stalled" | "unresponsive" | "unknown";
+  detail: string;
+  heartbeatAt?: number;
+  lastProgressAt?: number;
+}
+
+export interface FinetuneStage {
+  id: string;
+  label: string;
+  state: "complete" | "running" | "waiting" | "stopped" | "failed" | "unknown";
+  completed: number | null;
+  total: number | null;
+  unit: string | null;
+  detail?: string;
+  updatedAt?: number;
+  loss?: number;
+  etaSeconds?: number;
+  promptConcurrency?: number;
+  promptsPerMinute?: number;
+  latestCheckpoint?: number;
+  nextCheckpoint?: number;
+  metrics?: Array<{ label: string; value: number | string | null; unit?: string }>;
+  comparison?: EvaluationComparison;
+  comparisons?: EvaluationComparison[];
+  resources?: TrainingResource[];
+  activity?: TrainingActivity;
+  dependencies?: TrainingDependency[];
+  heartbeatAt?: number;
+  lastProgressAt?: number;
+  heartbeatTimeoutSeconds?: number;
+  progressTimeoutSeconds?: number;
+  health?: TrainingProgressHealth;
+}
+
+export interface FinetuneSource {
+  id: string;
+  label: string;
+  sparkId?: string;
+  kind: "desktop" | "training";
+  status: "live" | "stale" | "unavailable";
+  /** Time of the last successful source read, in epoch milliseconds. */
+  updatedAt: number | null;
+  resources?: TrainingResource[];
+  stages: Record<"data" | "training" | "evaluation", FinetuneStage[]>;
+}
+
+export interface FinetuneProgress {
+  enabled: boolean;
+  campaign: string;
+  model: string | null;
+  sources: FinetuneSource[];
+  active?: boolean;
+  runs?: TrainingRun[];
+}
+
+export interface TrainingRun {
+  id: string;
+  campaign: string;
+  model: string | null;
+  active: boolean;
+  sources: FinetuneSource[];
+}
+
 export interface Settings {
+  /** Opt-in read-only training module capability, configured on the server. */
+  trainingProgressEnabled?: boolean;
   /** Read-only server capability; configured through environment variables. */
   inferenceActivityEnabled?: boolean;
   pollIntervalMs: number;

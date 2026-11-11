@@ -1,7 +1,12 @@
 {
+  "sparkdashFork": {
+    "notice": "Modified by Maxrio9, 2026: optional training module and installable preview release",
+    "upstream": "https://github.com/MiaAI-Lab/sparkDash",
+    "upstreamBase": "163d109738d7c3cb8ae06b62f05840083a879a5f"
+  },
   "name": "sparkdash",
-  "version": "2.77.0",
-  "description": "sparkDash — Multi-DGX Spark Monitoring Dashboard",
+  "version": "2.77.0-training.1",
+  "description": "Community training-module fork of sparkDash \u2014 optional read-only training and evaluation monitoring",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -10,8 +15,8 @@
     "build": "vite build",
     "build:watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
-    "test": "npm run i18n:check && npm run test:i18n-check && npm run test:server && npm run test:frontend",
-    "test:server": "node --test server/__tests__/*.test.js server/collectors/__tests__/*.test.js server/sparks/__tests__/*.test.js server/llmtokens/__tests__/*.test.js server/llmlaunch/__tests__/*.test.js server/tooleval/__tests__/*.test.js server/metrics/__tests__/*.test.js server/health/__tests__/*.test.js server/gpuclock/__tests__/*.test.js server/alerts/__tests__/*.test.js server/prices/__tests__/*.test.js server/mqtt/__tests__/*.test.js server/occupancy/__tests__/*.test.js server/powermeter/__tests__/*.test.js scripts/occupancy-helper/*.test.js server/apiKeys/__tests__/*.test.js scripts/apikeys-bridge/*.test.js",
+    "test": "npm run i18n:check && npm run test:i18n-check && npm run test:training && npm run test:server && npm run test:frontend",
+    "test:server": "node --test --test-concurrency=4 server/__tests__/*.test.js server/collectors/__tests__/*.test.js server/sparks/__tests__/*.test.js server/llmtokens/__tests__/*.test.js server/llmlaunch/__tests__/*.test.js server/tooleval/__tests__/*.test.js server/metrics/__tests__/*.test.js server/health/__tests__/*.test.js server/gpuclock/__tests__/*.test.js server/alerts/__tests__/*.test.js server/prices/__tests__/*.test.js server/mqtt/__tests__/*.test.js server/occupancy/__tests__/*.test.js server/powermeter/__tests__/*.test.js scripts/occupancy-helper/*.test.js server/apiKeys/__tests__/*.test.js scripts/apikeys-bridge/*.test.js",
     "test:frontend": "vitest run",
     "preview": "vite preview",
     "start": "node server/index.js",
@@ -23,7 +28,9 @@
     "docker:multiarch": "docker compose -f docker-compose.yml -f docker-compose.multiarch.yml build",
     "frontend": "npm run build",
     "i18n:check": "node scripts/i18n-check.mjs",
-    "test:i18n-check": "node --test scripts/__tests__/i18n-check.test.mjs"
+    "test:i18n-check": "node --test scripts/__tests__/i18n-check.test.mjs",
+    "test:training": "python3 scripts/__tests__/training-artifacts.test.py",
+    "release:pack": "npm run build && node scripts/package-training-release.mjs"
   },
   "keywords": [
     "nvidia",

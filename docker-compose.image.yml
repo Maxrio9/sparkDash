@@ -1,3 +1,4 @@
+# Modified by Maxrio9, 2026: community training fork image and opt-in settings.
 # Runs the image published to the GitHub container registry for each release
 # tag, instead of building one from this checkout (docker-compose.yml does that).
 # Nothing but this file is needed on the host:
@@ -5,7 +6,7 @@
 # Pin a release with SPARKDASH_VERSION=<version> (default: latest).
 services:
   sparkdash:
-    image: ghcr.io/miaai-lab/sparkdash:${SPARKDASH_VERSION:-latest}
+    image: ghcr.io/maxrio9/sparkdash:${SPARKDASH_VERSION:-2.77.0-training.1}
     container_name: sparkDash
     # always: come back after host reboot even if the container was stopped
     # before shutdown (unlike unless-stopped, which stays down after a manual stop).
@@ -48,6 +49,9 @@ services:
       - PORT=5555
       - LLM_PORT=8888
       - NODE_ENV=production
+      - TRAINING_PROGRESS_ENABLED=${TRAINING_PROGRESS_ENABLED:-0}
+      - TRAINING_PROGRESS_ROOTS=${TRAINING_PROGRESS_ROOTS:-[]}
+      - TRAINING_PROGRESS_ROOTS_BY_UNIT=${TRAINING_PROGRESS_ROOTS_BY_UNIT:-}
       - HOST_PROC_PATH=/host/proc
       - HOST_SYS_PATH=/host/sys
       - HOST_ROOT_PATH=/host/root

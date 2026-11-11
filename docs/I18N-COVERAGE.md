@@ -1,5 +1,9 @@
 # UI localization coverage
 
+<!-- Modified by Maxrio9, 2026: document community training module coverage. -->
+
+**Community fork addition:** the optional training module uses the eagerly bundled `training` namespace in English and Simplified Chinese. Stage selection, progress/history, checkpoint comparisons, metric objectives, resource/dependency summaries and per-device evaluation labels are translated. Reporter-provided names, units, identifiers, metrics and diagnostic detail remain data. Language-switch regressions preserve stage selections, hidden chart series and confidence-interval visibility. This addition does not change the upstream review inventory below.
+
 **Snapshot baseline:** `main` at `7c2b9638b025cd39fb43f95c225de62980f130ee` on 2026-11-03. This is an inventory and update checklist, not a completion metric: passing tests or a successful build do not establish that a page is localized.
 
 ## Unified progress index

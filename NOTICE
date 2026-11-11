@@ -15,3 +15,8 @@ Open Font License 1.1) are listed in THIRD_PARTY_NOTICES.md.
 
 Third-party data bundled in server/collectors/data/ (GSM8K, MMLU) is covered
 by its own MIT notices, see server/collectors/data/NOTICE.md.
+
+Community training-module fork: modifications copyright 2026 Maxrio9.
+This distribution adds optional read-only training and evaluation monitoring.
+It is maintained independently of Mia's AI Lab; upstream attribution and
+licenses are retained. See MODIFICATIONS.md for the modified-file inventory.

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "run_id": "classification-example",
+  "campaign": "Classification fine-tuning",
+  "model": "Example model",
+  "source_id": "trainer-0",
+  "source_label": "Training and validation worker",
+  "stages": {
+    "data": [
+      {"id": "prepare", "label": "Prepare examples", "state": "complete", "completed": 1000, "total": 1000, "unit": "samples"}
+    ],
+    "training": [
+      {"id": "fit", "label": "Fine-tuning", "state": "complete", "completed": 100, "total": 100, "unit": "steps", "loss": 0.42}
+    ],
+    "evaluation": [
+      {
+        "id": "baseline", "label": "Baseline validation", "state": "complete", "completed": 100, "total": 100, "unit": "samples",
+        "comparisons": [{"metric": "accuracy", "metricLabel": "Validation accuracy", "value": 0.7, "unit": "fraction", "seriesId": "baseline", "seriesLabel": "Baseline", "baseline": true, "cohortId": "synthetic-dev-v1", "contextId": "fixed-settings-v1", "contextLabel": "Synthetic dev · fixed settings", "goal": "maximize"}]
+      },
+      {
+        "id": "checkpoint-100", "label": "Checkpoint 100 validation", "state": "complete", "completed": 100, "total": 100, "unit": "samples",
+        "comparisons": [{"metric": "accuracy", "metricLabel": "Validation accuracy", "value": 0.8, "unit": "fraction", "seriesId": "tuned", "seriesLabel": "Fine-tuned", "checkpoint": 100, "checkpointUnit": "steps", "cohortId": "synthetic-dev-v1", "contextId": "fixed-settings-v1", "contextLabel": "Synthetic dev · fixed settings", "goal": "maximize", "lower": 0.76, "upper": 0.84}]
+      }
+    ]
+  }
+}

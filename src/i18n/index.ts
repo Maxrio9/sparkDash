@@ -1,3 +1,6 @@
+// Modified by Maxrio9 in 2026: register the optional training module catalog.
+import enTraining from "../locales/en/training.json";
+import zhTraining from "../locales/zh-CN/training.json";
 import { createInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import enSettings from "../locales/en/settings.json";
@@ -53,15 +56,15 @@ export function detectLocale(): Locale {
 export const i18n = createInstance();
 void i18n.use(initReactI18next).init({
   resources: {
-    en: { settings: enSettings, language: enLanguage, shell: enShell, overview: enOverview, spark: enSpark, activity: enActivity, statistics: enStatistics, devices: enDevices, hardware: enHardware, shareCards: enShareCards, toolMessages: enToolMessages, tooleval: enTooleval, benchmarks: enBenchmarks, showcase: enShowcase },
-    "zh-CN": { settings: zhSettings, language: zhLanguage, shell: zhShell, overview: zhOverview, spark: zhSpark, activity: zhActivity, statistics: zhStatistics, devices: zhDevices, hardware: zhHardware, shareCards: zhShareCards, toolMessages: zhToolMessages, tooleval: zhTooleval, benchmarks: zhBenchmarks, showcase: zhShowcase },
+    en: { settings: enSettings, language: enLanguage, shell: enShell, overview: enOverview, spark: enSpark, activity: enActivity, statistics: enStatistics, devices: enDevices, hardware: enHardware, shareCards: enShareCards, toolMessages: enToolMessages, tooleval: enTooleval, benchmarks: enBenchmarks, showcase: enShowcase, training: enTraining },
+    "zh-CN": { settings: zhSettings, language: zhLanguage, shell: zhShell, overview: zhOverview, spark: zhSpark, activity: zhActivity, statistics: zhStatistics, devices: zhDevices, hardware: zhHardware, shareCards: zhShareCards, toolMessages: zhToolMessages, tooleval: zhTooleval, benchmarks: zhBenchmarks, showcase: zhShowcase, training: zhTraining },
   },
   lng: detectLocale(),
   fallbackLng: "en",
   supportedLngs: ["en", "zh-CN"],
   load: "currentOnly",
   defaultNS: "settings",
-  ns: ["settings", "language", "shell", "overview", "spark", "activity", "statistics", "devices", "hardware", "shareCards", "toolMessages", "tooleval", "benchmarks", "showcase"],
+  ns: ["settings", "language", "shell", "overview", "spark", "activity", "statistics", "devices", "hardware", "shareCards", "toolMessages", "tooleval", "benchmarks", "showcase", "training"],
   interpolation: { escapeValue: false },
   returnEmptyString: false,
   initAsync: false,

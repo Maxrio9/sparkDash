@@ -1,5 +1,20 @@
 # Changelog
 
+<!-- Modified by Maxrio9, 2026: community training preview release. -->
+
+## Community preview 2.77.0-training.1 — 2026-11-11
+
+Independent fork of upstream 2.77.0 (`163d109`). See [installation](TRAINING-RELEASE.md) and [module guide](server/training/README.md).
+
+- Optional read-only training/evaluation module with explicit discovery roots, generic providers and portable JSON reporting. No private deployment collectors or device configuration are distributed.
+- Current-stage progress, independently selectable history, multiple experiments/workers, ETA and estimated finish time. The main pane hides after confirmed training ends.
+- Checkpoint/baseline comparison with metric goals and dataset/settings isolation; per-device evaluation progress, reported concurrency and scoped observed rates.
+- Declared resources, activities and dependencies, plus heartbeat/progress health. Unsupported or inaccessible process evidence stays unknown.
+- Native artifact readers for representative Transformers/TRL, Lightning and Keras output, with bounded reads and isolated failures. English and Simplified Chinese UI catalogs and a wholly synthetic demo are included.
+- Installable archive with a prebuilt frontend and checksums; fork-scoped container publishing and CI. Compatible lockfile security updates; server test concurrency bounded to reduce fixture port races.
+
+Upstream changelog follows unchanged.
+
 All notable changes to **sparkDash** are documented here.  
 The README [Latest version changelog](./README.md#latest-version-changelog) summarises the latest releases; this file keeps the full history.
 

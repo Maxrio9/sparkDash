@@ -1,5 +1,9 @@
 # sparkDash ⚡ — Multi-unit monitoring dashboard for NVIDIA DGX Spark
 
+<!-- Modified by Maxrio9 in 2026: community training-module fork information and setup. -->
+
+> **Community training-module fork:** this repository extends [MiaAI-Lab/sparkDash](https://github.com/MiaAI-Lab/sparkDash) with an optional, read-only training and evaluation monitor. It is maintained separately by [Maxrio9](https://github.com/Maxrio9); releases here are community previews, not upstream releases. Existing upstream features and attribution are retained. See [installation instructions](TRAINING-RELEASE.md), [training setup and reporting](server/training/README.md) and [installable releases](https://github.com/Maxrio9/sparkDash/releases).
+
 <p align="center">
   <img src="https://img.shields.io/badge/platform-arm64-2d9d78?style=flat-square" alt="Platform: ARM64">
   <img src="https://img.shields.io/badge/React-19-58c4dc?style=flat-square&logo=react" alt="React 19">
@@ -35,6 +39,7 @@ Monitored units run **Linux**, **macOS**, or **Windows** (a Windows PC with an N
 
 ## Table of contents
 
+- [Training and evaluation module](#training-and-evaluation-module)
 - [Latest version changelog](#latest-version-changelog)
 - [Features](#features)
 - [LLM server presets & backend auto-detection](#llm-server-presets--backend-auto-detection)
@@ -68,6 +73,31 @@ Monitored units run **Linux**, **macOS**, or **Windows** (a Windows PC with an N
 - [Acknowledgements](#acknowledgements)
 
 ---
+
+## Training and evaluation module
+
+This fork adds progress for multiple experiments and workers across configured devices, with selectable preparation/training/evaluation panels, checkpoint comparisons against a baseline, declared worker resources and dependencies, health indicators, ETA and estimated finish time. Evaluation tiles continue showing each device's evaluation work. The main progress pane hides when no live training remains.
+
+![Synthetic training and evaluation example](.github/training-preview.png)
+
+The module is **off by default**. It does not launch jobs, change evaluation concurrency, reserve GPUs or run a scheduler. The native readers support Transformers/TRL Trainer state, Lightning CSVLogger and Keras CSVLogger; arbitrary training loops can publish the same JSON progress format. Scores carry their metric, unit, dataset/settings identity and optimization goal, so unrelated objectives are not combined.
+
+Use the [community release installation instructions](TRAINING-RELEASE.md) to install this fork. Set these in `.env`, then restart sparkDash:
+
+```dotenv
+TRAINING_PROGRESS_ENABLED=1
+TRAINING_PROGRESS_ROOTS=["~/training-runs"]
+```
+
+Roots are interpreted on each configured Unix host as the collector user. Nothing is searched until roots are explicitly configured. For host-specific paths, use `TRAINING_PROGRESS_ROOTS_BY_UNIT`; see [the module guide](server/training/README.md#enable-and-configure).
+
+A CPU-only synthetic example can exercise the module without any training framework:
+
+```bash
+python3 examples/training/demo.py --output-dir "$HOME/training-runs/synthetic-demo"
+```
+
+Add the machine running the demo as a local unit (or configure its SSH connection), then open Overview. The example writes only synthetic progress and scores. [Reporting examples](examples/training/README.md) explain how to connect a real loop, separate evaluators or distributed workers.
 
 ## Latest version changelog
 
@@ -819,7 +849,7 @@ makes a stale marker disappear after a reboot, when the lock is gone too.
 ## Quick start
 
 ```bash
-git clone https://github.com/MiaAI-Lab/sparkDash.git
+git clone https://github.com/Maxrio9/sparkDash.git
 cd sparkDash
 
 # Production (Docker; loopback-only by default)
@@ -934,6 +964,7 @@ sparkDash/
 │   ├── collectors/      SystemCollector, LlmProbe, ssh, RoCE, Windows (PowerShell)
 │   ├── health/          HealthEvaluator (findings)
 │   ├── energy/          Fleet energy tracker + monthly archive
+│   ├── training/        Opt-in training progress, providers, health and checkpoint comparisons
 │   ├── powermeter/      Opt-in wall-power meters: providers, polling, history reconciliation (recorded by energy/)
 │   ├── llmtokens/       Token ledger · events/ Activity log · metrics/ Unit history (GPU chart, Temps week, 48 h / 30 d tiers)
 │   ├── llmlaunch/       Model launchers · tooleval/ Tool Eval Bench
@@ -1433,7 +1464,7 @@ Settings → Language switches immediately between English and 简体中文, rem
 
 The translated surfaces include the foundation's Settings rows and embedded browser-alert controls; desktop and mobile navigation, command palette, theme controls, connection/error banners, open-access warning and install prompt; the Overview page with its unit cards, fleet metrics, activity/alert controls and inline actions; the Spark detail page, including the GPU, CPU, system RAM and unified-memory panels, GPU history-chart controls, the shared process table, the LLM live panel (metrics/help, port/API-key settings, benchmark entry controls and sessions), LLM history/daily charts and cumulative token tables, headers/actions, storage, network, RoCE, Tailscale, ComfyUI, metric history, model scripts/launcher and Hermes update controls; fleet reports (token totals, cost comparison, energy and monthly archives, temperature charts, activity filters/exports and kiosk presentation); device setup (Add/Edit Spark, per-unit GPU clock controls, Harness setup, alert configuration and access-token dialogs); Decode, Prefill, Quality and Tool Eval benchmark workflows with their generated share cards; and the embedded and full-screen Showcase views. Language changes preserve drafts, selected ranges, filters, chart geometry, pending requests and token accounting. Raw server events and diagnostics, user-supplied names, device/interface identifiers, model names, commands, prompts, streamed output and stable option/metric IDs remain unchanged. See [UI localization coverage](docs/I18N-COVERAGE.md) for merged, pending and unwired slices. Server settings and other users' language preferences are unaffected.
 
-`src/i18n/index.ts` owns one i18next/react-i18next instance, initialized by `src/main.tsx` before React mounts. The `settings`, `language`, `shell`, `overview`, `spark`, `activity`, `statistics`, `devices`, `hardware`, `shareCards`, `toolMessages`, `tooleval`, `benchmarks` and `showcase` catalogs are bundled eagerly. English JSON in `src/locales/en/` is the source of truth and fallback; `src/locales/zh-CN/` mirrors each page or namespace. Add future namespace imports and resources to this same loader.
+`src/i18n/index.ts` owns one i18next/react-i18next instance, initialized by `src/main.tsx` before React mounts. The `settings`, `language`, `shell`, `overview`, `spark`, `activity`, `statistics`, `devices`, `hardware`, `shareCards`, `toolMessages`, `tooleval`, `benchmarks` `showcase` and `training` catalogs are bundled eagerly. English JSON in `src/locales/en/` is the source of truth and fallback; `src/locales/zh-CN/` mirrors each page or namespace. Add future namespace imports and resources to this same loader.
 
 Use `const { t } = useTranslation("settings")` with static keys such as `t("dialog.save")`. Add the English entry first, then its translation. Use plain i18next interpolation (`"Hello, {{name}}"`) and ordinary plural keys (`items_one` / `items_other` with a numeric `count`); there is no ICU plugin or `intl-messageformat`. React escapes rendered text. Keep IDs, settings values and raw diagnostics separate from display text, and store stable message reasons rather than translated strings so feedback updates on language changes.
 

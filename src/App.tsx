@@ -1,3 +1,4 @@
+// Modified by Maxrio9 in 2026: optional read-only training progress module.
 import { BenchIcon } from "./components/bench/BenchIcon";
 import { setConfiguredTimeZone } from "./shared/timeZone";
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -618,6 +619,7 @@ function DashboardApp() {
                   hideWorkers={hideWorkers}
                   showFleetEnergy={settings?.showFleetEnergy ?? true}
                   showInferenceActivity={settings?.inferenceActivityEnabled === true}
+                  showFinetuneProgress={settings?.trainingProgressEnabled === true}
                   showFleetExceptions={settings?.showFleetExceptions ?? false}
                   alertsEnabled={settings?.alertsEnabled ?? false}
                   serverAlerts={serverAlerts}

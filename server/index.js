@@ -1,3 +1,4 @@
+// Modified by Maxrio9: optional read-only training progress module (2026).
 // First on purpose: imports are evaluated in order, and config.js, settings.js
 // and the bench modules read process.env while they load.
 import "dotenv/config";
@@ -79,6 +80,7 @@ import { ToolEvalStore } from "./tooleval/ToolEvalStore.js";
 import { ToolEvalManager } from "./tooleval/ToolEvalManager.js";
 import { registerToolEvalRoutes } from "./tooleval/routes.js";
 import { registerApiKeysRoutes } from "./apiKeys/routes.js";
+import { registerTrainingProgressRoutes } from "./training/index.js";
 import { benchEvent } from "./events/eventFormat.js";
 import {
   createFleetEnergyRuntime,
@@ -532,6 +534,7 @@ app.get("/api/auth/status", createHostGuardMiddleware(), (req, res) => {
 });
 app.use(createAuthMiddleware());
 occupancy.register(app);
+const trainingProgress = registerTrainingProgressRoutes(app, { getSparks: () => registry.sparks });
 
 /** Fleet event log, newest first. Query: limit, sparkId, sinceId. */
 app.get("/api/events", (req, res) => {
@@ -789,7 +792,7 @@ app.put("/api/sparks/order", (req, res) => {
 
 // ─── Global settings ──────────────────────────────────────
 app.get("/api/settings", (_req, res) => {
-  res.json({ ...getSettings(), inferenceActivityEnabled: inferenceActivity.enabled });
+  res.json({ ...getSettings(), inferenceActivityEnabled: inferenceActivity.enabled, trainingProgressEnabled: trainingProgress.enabled });
 });
 
 app.put("/api/settings", (req, res) => {
@@ -806,7 +809,7 @@ app.put("/api/settings", (req, res) => {
     }
     // MQTT broker URL / prefix / enablement changed: reconnect (a no-op otherwise).
     mqttPublisher.applySettings();
-    res.json({ ...newSettings, inferenceActivityEnabled: inferenceActivity.enabled });
+    res.json({ ...newSettings, inferenceActivityEnabled: inferenceActivity.enabled, trainingProgressEnabled: trainingProgress.enabled });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
