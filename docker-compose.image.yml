@@ -6,7 +6,7 @@
 # Pin a release with SPARKDASH_VERSION=<version> (default: latest).
 services:
   sparkdash:
-    image: ghcr.io/maxrio9/sparkdash:${SPARKDASH_VERSION:-2.77.0-training.1}
+    image: ghcr.io/maxrio9/sparkdash:${SPARKDASH_VERSION:-2.77.0-training.2}
     container_name: sparkDash
     # always: come back after host reboot even if the container was stopped
     # before shutdown (unlike unless-stopped, which stays down after a manual stop).

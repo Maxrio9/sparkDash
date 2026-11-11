@@ -15,7 +15,7 @@ fork notice. New module sources and fixtures are contributed under Apache-2.0.
 The lockfile refresh resolves the inherited npm advisories within the existing
 compatible ranges; no new direct dependency is introduced. Server tests use four
 concurrent files to reduce ephemeral-port fixture races during full validation.
-The default feature state is off, with no discovery roots.
+The default feature state is off, with no discovery roots. Preview 2 also copies the root license/notice files into the runtime image; CI runs in a reaping Debian container under a normal user to exercise shell and permission fixtures.
 
 ## Modified upstream files
 

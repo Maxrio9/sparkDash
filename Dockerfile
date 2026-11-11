@@ -1,4 +1,4 @@
-# Modified by Maxrio9, 2026: include Python for optional training collectors.
+# Modified by Maxrio9, 2026: include training Python and distribution notices.
 # ============================================================
 # sparkDash — Multi-DGX Spark Monitoring Dashboard
 # Dockerfile for arm64 (DGX Spark GB10 platform)
@@ -59,6 +59,7 @@ COPY --from=builder /app/dist ./dist-baked
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
+COPY --from=builder /app/LICENSE /app/NOTICE /app/LICENSE-MIT /app/THIRD_PARTY_NOTICES.md /app/MODIFICATIONS.md ./
 COPY --from=builder /app/server ./server
 COPY --from=builder /app/src/shared ./src/shared
 COPY --from=builder /app/src/components/ShowcasePage/showcasePrompts.ts ./src/components/ShowcasePage/showcasePrompts.ts

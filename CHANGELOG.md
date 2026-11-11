@@ -2,7 +2,9 @@
 
 <!-- Modified by Maxrio9, 2026: community training preview release. -->
 
-## Community preview 2.77.0-training.1 — 2026-11-11
+## Community preview 2.77.0-training.2 — 2026-11-11
+
+Supersedes preview 1: container distributions now include the full root licenses/notices, alongside the existing dataset and dependency notices. CI uses a normal user in a reaping Debian container so permission and zsh fixtures are exercised. The training module is unchanged.
 
 Independent fork of upstream 2.77.0 (`163d109`). See [installation](TRAINING-RELEASE.md) and [module guide](server/training/README.md).
 

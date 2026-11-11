@@ -5,7 +5,7 @@
     "upstreamBase": "163d109738d7c3cb8ae06b62f05840083a879a5f"
   },
   "name": "sparkdash",
-  "version": "2.77.0-training.1",
+  "version": "2.77.0-training.2",
   "description": "Community training-module fork of sparkDash \u2014 optional read-only training and evaluation monitoring",
   "type": "module",
   "scripts": {
