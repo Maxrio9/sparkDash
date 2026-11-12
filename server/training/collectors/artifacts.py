@@ -672,7 +672,8 @@ def manifest_run(path, document, processes, host, now, inactive_processes=()):
                 if comparisons:
                     row['comparisons'] = comparisons
                     row.setdefault('comparison', comparisons[0])
-            if row['state'] == 'running' and live is not True:
+            needs_live_process = row['state'] == 'running' or (group == 'evaluation' and row['state'] == 'waiting')
+            if needs_live_process and live is not True:
                 row['state'] = 'stopped' if live is False else 'unknown'
                 row['detail'] = 'Stage process is inactive.' if live is False else 'Live process identity unavailable.'
             if row['state'] == 'running' and 'etaSeconds' in row:
@@ -937,16 +938,17 @@ def collect(roots, host, proc=Path('/proc'), now=None):
                 measured = lambda item: max((stage.get('updatedAt', 0) for group in GROUPS for stage in item['stages'][group]), default=0)
                 if measured(source) >= measured(previous):
                     existing['sources'][existing['sources'].index(previous)] = source
+    def priority(source):
+        training = any(row['state'] == 'running' for row in source['stages']['training'])
+        evaluation = any(row['state'] in ('running', 'waiting') for row in source['stages']['evaluation'])
+        running = any(row['state'] == 'running' for group in GROUPS for row in source['stages'][group])
+        measured = max((row.get('updatedAt', 0) for group in GROUPS for row in source['stages'][group]), default=0)
+        return training or evaluation, running, measured
+
     candidates = list(grouped.values())
-    candidates.sort(key=lambda run: not any(row['state'] == 'running'
-                    for source in run['sources'] for group in GROUPS for row in source['stages'][group]))
+    candidates.sort(key=lambda run: max((priority(source) for source in run['sources']), default=(False, False, 0)), reverse=True)
     selected, size = [], 2
     for run in candidates:
-        def priority(source):
-            training = any(row['state'] == 'running' for row in source['stages']['training'])
-            active = any(row['state'] == 'running' for group in GROUPS for row in source['stages'][group])
-            measured = max((row.get('updatedAt', 0) for group in GROUPS for row in source['stages'][group]), default=0)
-            return training, active, measured
         bounded = {**run, 'sources': []}
         for source in sorted(run['sources'], key=priority, reverse=True)[:64]:
             candidate = {**bounded, 'sources': [*bounded['sources'], source]}

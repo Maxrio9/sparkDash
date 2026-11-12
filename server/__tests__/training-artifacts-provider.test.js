@@ -90,6 +90,24 @@ test("oversized distributed runs preserve active reporters within source and pay
   assert.ok(Buffer.byteLength(JSON.stringify(runs)) < 1024 * 1024);
 });
 
+test("final evaluation queues retain priority over completed runs and reporters at discovery bounds", async () => {
+  for (const distributed of [true, false]) {
+    const provider = fixtureProvider();
+    const sparks = Array.from({ length: 100 }, (_, i) => ({ id: `worker-${i}` }));
+    const runs = await provider.collect({ sparks, now: () => 10000, runPython: async (spark) => {
+      const number = Number(spark.id.split("-")[1]);
+      const entry = run(distributed ? "distributed" : `job-${number}`, spark.id, "complete", number);
+      entry.sources[0].stages.evaluation = [{ id: "validation", label: "Final validation",
+        state: number < 2 ? number === 0 ? "waiting" : "running" : "complete", updatedAt: number }];
+      return JSON.stringify([entry]);
+    } });
+    const selected = distributed ? runs[0].sources : runs.map((entry) => entry.sources[0]);
+    assert.equal(selected.length, 64);
+    assert.deepEqual(new Set(selected.slice(0, 2).map((source) => source.stages.evaluation[0].state)), new Set(["waiting", "running"]));
+    assert.ok(Buffer.byteLength(JSON.stringify(runs)) < 1024 * 1024);
+  }
+});
+
 test("empty default roots perform no filesystem or host probes", async () => {
   const provider = createArtifactProvider({ getRoots: () => artifactRootsFromEnv({}) });
   assert.deepEqual(await provider.collect({ sparks: [{ id: "unit-a" }], now: Date.now,

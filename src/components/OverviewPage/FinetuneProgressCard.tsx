@@ -4,7 +4,7 @@ import "../../styles/training-progress.css";
 import { useId, useState } from "react";
 import type { FinetuneProgress, FinetuneSource, FinetuneStage, TrainingRun } from "../../api/types";
 import { EvaluationCheckpointChart } from "./EvaluationCheckpointChart";
-import { hasLiveTraining, trainingRuns } from "./useFinetuneProgress";
+import { hasLiveTrainingOrEvaluation, trainingRuns } from "./useFinetuneProgress";
 
 const count = new Intl.NumberFormat();
 const loss = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 6 });
@@ -333,9 +333,10 @@ function RunProgress({ run, runId }: { run: TrainingRun; runId: string }) {
   const [selection, setSelection] = useState<Set<GroupId> | null>(null);
   const devices = new Set(run.sources.map((source) => source.sparkId ?? source.id)).size;
   const populated = groups.filter(({ id }) => run.sources.some((source) => source.stages[id].length > 0));
-  const running = populated.filter(({ id }) => groupSummary(run.sources, id, t).state === "running");
-  const current = populated.filter(({ id }) => running.some((group) => group.id === id)
-    || (id === "evaluation" && running.some((group) => group.id === "training")));
+  const current = populated.filter(({ id }) => run.sources.some((source) => source.status === "live" && (
+    source.stages[id].some((stage) => stage.state === "running" || (id === "evaluation" && stage.state === "waiting"))
+    || (id === "evaluation" && source.stages.training.some((stage) => stage.state === "running"))
+  )));
   const automatic = current.length ? current : populated;
   const visible = selection === null ? automatic : populated.filter(({ id }) => selection.has(id));
 
@@ -406,11 +407,11 @@ export function FinetuneProgressCard({ snapshot, requestFailed }: {
   const { t } = useTranslation("training");
   const headingId = useId();
   const reported = trainingRuns(snapshot);
-  const hasTraining = reported.some(hasLiveTraining);
+  const hasWork = reported.some(hasLiveTrainingOrEvaluation);
   const runs = reported.filter((run) => run.sources.some((source) => source.status === "live" &&
-    groups.some(({ id }) => source.stages[id].some((stage) => stage.state === "running"))));
+    groups.some(({ id }) => source.stages[id].some((stage) => stage.state === "running" || (id === "evaluation" && stage.state === "waiting")))));
 
-  if (requestFailed || !hasTraining || runs.length === 0) return null;
+  if (requestFailed || !hasWork || runs.length === 0) return null;
   return (
     <section className="panel ov-card ov-finetune" aria-labelledby={headingId}>
       <header className="ov-finetune-head">

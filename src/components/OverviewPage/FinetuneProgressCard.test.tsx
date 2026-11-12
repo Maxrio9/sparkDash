@@ -226,7 +226,7 @@ it("keeps stage choices separate for independent runs sharing a host and stable 
   expect(article("Second experiment").querySelectorAll(".ov-finetune-group")).toHaveLength(2);
 });
 
-it("keeps a run's evaluation visible while another run trains and hides the pane after all training stops", () => {
+it("keeps a run's evaluation visible after every trainer finishes and hides after evaluation finishes", () => {
   const evaluating: TrainingRun = {
     id: "evaluating", campaign: "Finished training, evaluating", model: null, active: false,
     sources: [{ ...snapshot.sources[0], sparkId: "gpu-lab", stages: {
@@ -255,9 +255,76 @@ it("keeps a run's evaluation visible while another run trains and hides the pane
   const finished: TrainingRun = { ...training, active: false, sources: [{
     ...snapshot.sources[1], stages: { data: [], evaluation: [], training: [stage("done", "Training finished", "complete")] },
   }] };
-  // Even a delayed run.active snapshot cannot keep an evaluation-only pane open.
+  // Reporter stages keep the pane open even while an older server still reports active=false.
   act(() => root.render(<FinetuneProgressCard snapshot={{ ...reported, runs: [evaluating, finished, preparing] }} requestFailed={false} />));
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelectorAll(".ov-finetune-run")).toHaveLength(2);
+  expect(container.querySelector('.ov-finetune-run [data-group="evaluation"]')).not.toBeNull();
+  expect(container.querySelector('.ov-finetune-run [data-group="training"]')).toBeNull();
+  const evaluated = { ...evaluating, sources: evaluating.sources.map((source) => ({ ...source, stages: {
+    ...source.stages, evaluation: source.stages.evaluation.map((row) => ({ ...row, state: "complete" as const })),
+  } })) };
+  act(() => root.render(<FinetuneProgressCard snapshot={{ ...reported, runs: [evaluated, finished, preparing] }} requestFailed={false} />));
   expect(container.querySelector(".ov-finetune")).toBeNull();
+});
+
+it.each(["running", "waiting"] as const)("opens the current evaluation view for a %s final evaluator with completed training accessible", (state) => {
+  const evaluating: FinetuneProgress = { ...snapshot, sources: [{
+    ...snapshot.sources[0], stages: {
+      data: [stage("data", "Preparation finished", "complete")],
+      training: [stage("train", "Training finished", "complete")],
+      evaluation: [stage("final", "Final validation", state)],
+    },
+  }] };
+  const { container } = render(<FinetuneProgressCard snapshot={evaluating} requestFailed={false} />);
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="evaluation"]')?.textContent).toContain("Final validation");
+  expect(container.querySelector('[data-group="training"]')).toBeNull();
+  expect(container.querySelector('[data-group="data"]')).toBeNull();
+  act(() => container.querySelector<HTMLButtonElement>('[data-stage="training"]')!.click());
+  expect(container.querySelector('[data-group="training"]')?.textContent).toContain("Training finished");
+});
+
+it.each(["stale", "unavailable"] as const)("does not retain the pane for cached running or queued evaluation from a %s source", (status) => {
+  const evaluating: TrainingRun = { id: "cached", campaign: "Cached final evaluation", model: null, active: true,
+    sources: [{ ...snapshot.sources[0], status, stages: {
+      data: [], training: [stage("done", "Training finished", "complete")],
+      evaluation: [stage("eval", "Final validation", "running"), stage("queued", "Queued validation", "waiting")],
+    } }],
+  };
+  const { container } = render(<FinetuneProgressCard snapshot={{ ...snapshot, active: true, runs: [evaluating] }} requestFailed={false} />);
+  expect(container.querySelector(".ov-finetune")).toBeNull();
+});
+
+it("keeps the evaluation view current when another checkpoint failed after training finished", () => {
+  const evaluating: FinetuneProgress = { ...snapshot, sources: [{ ...snapshot.sources[0], stages: {
+    data: [stage("data", "Preparation finished", "complete")],
+    training: [stage("train", "Training finished", "complete")],
+    evaluation: [stage("failed", "Earlier validation failed", "failed"), stage("final", "Final validation", "running")],
+  } }] };
+  const { container } = render(<FinetuneProgressCard snapshot={evaluating} requestFailed={false} />);
+  expect(container.querySelector('[data-group="evaluation"]')?.textContent).toContain("Earlier validation failed");
+  expect(container.querySelector('[data-group="evaluation"]')?.textContent).toContain("Final validation");
+  expect(container.querySelector('[data-group="training"]')).toBeNull();
+  expect(container.querySelector('[data-group="data"]')).toBeNull();
+});
+
+it("retains a manual history selection as training finishes and evaluation continues", () => {
+  const { container, root } = render(<FinetuneProgressCard snapshot={snapshot} requestFailed={false} />);
+  act(() => container.querySelector<HTMLButtonElement>('[data-stage="evaluation"]')!.click());
+  const trained = { ...snapshot, sources: snapshot.sources.map((source) => ({ ...source, stages: {
+    ...source.stages, training: source.stages.training.map((row) => ({ ...row, state: "complete" as const })),
+  } })) };
+  act(() => root.render(<FinetuneProgressCard snapshot={trained} requestFailed={false} />));
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="training"]')).not.toBeNull();
+  expect(container.querySelector('[data-group="evaluation"]')).toBeNull();
+  expect(container.querySelector('[data-stage="training"]')?.getAttribute("aria-pressed")).toBe("true");
+  expect(container.querySelector('[data-stage="evaluation"]')?.getAttribute("aria-pressed")).toBe("false");
+  act(() => container.querySelector<HTMLButtonElement>('[data-stage="training"]')!.click());
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelectorAll(".ov-finetune-group")).toHaveLength(0);
+  expect(container.textContent).toContain("No stages selected. Select a stage above.");
 });
 
 it("counts physical devices once when several reporters share one device", () => {
@@ -494,7 +561,7 @@ it("renders multiple providers with arbitrary metrics, units and stage groups on
   expect(firstGroups).toHaveLength(1);
 });
 
-it("hides evaluation-only progress and keeps polling so new training appears and completed training disappears", async () => {
+it("keeps polling through completed training and queued final evaluation, then hides only after the last result", async () => {
   vi.useFakeTimers();
   vi.spyOn(document, "hidden", "get").mockReturnValue(false);
   const evaluationOnly: TrainingRun = {
@@ -502,27 +569,47 @@ it("hides evaluation-only progress and keeps polling so new training appears and
     sources: [{ ...snapshot.sources[0], sparkId: "desktop" }],
   };
   const active: TrainingRun = { ...evaluationOnly, active: true, sources: [...evaluationOnly.sources, snapshot.sources[1]] };
-  const finished: TrainingRun = {
+  const trained: TrainingRun = {
     ...active, active: false, sources: [active.sources[0], {
       ...active.sources[1], stages: { ...active.sources[1].stages, training: [stage("done", "Training complete", "complete")] },
     }],
   };
+  const queued: TrainingRun = { ...trained, sources: trained.sources.map((source) => ({ ...source, stages: {
+    ...source.stages, evaluation: source.stages.evaluation.map((row, index) => ({
+      ...row, state: index === 1 ? "waiting" as const : "complete" as const,
+    })),
+  } })) };
+  const finished: TrainingRun = { ...queued, sources: queued.sources.map((source) => ({ ...source, stages: {
+    ...source.stages, evaluation: source.stages.evaluation.map((row) => ({ ...row, state: "complete" as const })),
+  } })) };
   vi.mocked(fetchTrainingProgress)
-    .mockResolvedValueOnce({ ...snapshot, active: false, runs: [evaluationOnly] })
     .mockResolvedValueOnce({ ...snapshot, active: true, runs: [active] })
+    .mockResolvedValueOnce({ ...snapshot, active: false, runs: [trained] })
+    .mockResolvedValueOnce({ ...snapshot, active: true, runs: [queued] })
     .mockResolvedValueOnce({ ...snapshot, active: false, runs: [finished] });
   const { container } = render(<OverviewPage sparks={[makeSpark("desktop")]} showFinetuneProgress />);
   await flush();
-  expect(container.querySelector(".ov-finetune")).toBeNull();
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="training"]')).not.toBeNull();
   expect(container.querySelector('[aria-label="Evaluation"]')).not.toBeNull();
   expect(fetchTrainingProgress).toHaveBeenCalledTimes(1);
 
   await act(async () => vi.advanceTimersByTimeAsync(10_000));
   expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="training"]')).toBeNull();
+  expect(container.querySelector('[data-group="evaluation"]')).not.toBeNull();
+  expect(container.querySelector('[data-stage="training"]')).not.toBeNull();
   expect(fetchTrainingProgress).toHaveBeenCalledTimes(2);
   await act(async () => vi.advanceTimersByTimeAsync(10_000));
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="training"]')).toBeNull();
+  expect(container.querySelector('[data-group="evaluation"]')).not.toBeNull();
+  expect(container.querySelector('[aria-label="Evaluation"]')).toBeNull();
+  expect(fetchTrainingProgress).toHaveBeenCalledTimes(3);
+  await act(async () => vi.advanceTimersByTimeAsync(10_000));
   expect(container.querySelector(".ov-finetune")).toBeNull();
-  expect(container.querySelector('[aria-label="Evaluation"]')).not.toBeNull();
+  expect(container.querySelector('[aria-label="Evaluation"]')).toBeNull();
+  expect(fetchTrainingProgress).toHaveBeenCalledTimes(4);
 });
 
 it("routes evaluation metrics by host identity independently of the provider source name", async () => {
@@ -536,7 +623,8 @@ it("routes evaluation metrics by host identity independently of the provider sou
   host.metrics.llm = [];
   const { container } = render(<OverviewPage sparks={[host]} showFinetuneProgress />);
   await flush();
-  expect(container.querySelector(".ov-finetune")).toBeNull();
+  expect(container.querySelector(".ov-finetune")).not.toBeNull();
+  expect(container.querySelector('[data-group="evaluation"]')).not.toBeNull();
   expect(container.querySelector('[aria-label="Evaluation"]')?.textContent).toContain("6.2 prompts/min");
   expect(container.querySelector(".ov-modelrow")?.textContent).toContain("Custom evaluation");
 });

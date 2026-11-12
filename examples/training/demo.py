@@ -102,7 +102,7 @@ def main():
         training[0]["state"] = "complete"
         training[0].pop("etaSeconds", None)
         reporter.write(data=prepared, training=training, evaluation=results)
-        print("Synthetic run complete. The main training pane will hide on its next refresh.", flush=True)
+        print("Synthetic training and evaluation complete. The main pane will hide on its next refresh.", flush=True)
     except (KeyboardInterrupt, Exception) as error:
         if training:
             training[0]["state"] = "stopped" if isinstance(error, KeyboardInterrupt) else "failed"

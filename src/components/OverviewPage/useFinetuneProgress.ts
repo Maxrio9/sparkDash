@@ -19,16 +19,18 @@ export type HostEvaluation = Pick<FinetuneStage, "label" | "promptConcurrency" |
   health?: FinetuneStage["health"];
 };
 
-export function hasLiveTraining(run: TrainingRun) {
-  return run.sources.some((source) => source.status === "live" &&
-    source.stages.training.some((stage) => stage.state === "running"));
+export function hasLiveTrainingOrEvaluation(run: TrainingRun) {
+  return run.sources.some((source) => source.status === "live" && (
+    source.stages.training.some((stage) => stage.state === "running") ||
+    source.stages.evaluation.some((stage) => stage.state === "running" || stage.state === "waiting")
+  ));
 }
 
 export function trainingRuns(snapshot: FinetuneProgress | null): TrainingRun[] {
   if (!snapshot?.enabled) return [];
   if (snapshot.runs) return snapshot.runs;
   const run = { id: "legacy", campaign: snapshot.campaign, model: snapshot.model, sources: snapshot.sources, active: false };
-  return [{ ...run, active: hasLiveTraining(run) }];
+  return [{ ...run, active: hasLiveTrainingOrEvaluation(run) }];
 }
 
 /** A physical device can host several reporters and independent evaluations. */

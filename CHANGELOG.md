@@ -2,6 +2,12 @@
 
 <!-- Modified by Maxrio9, 2026: community training preview release. -->
 
+## Community preview 2.77.0-training.3 — 2026-11-12
+
+- Keep the training progress pane visible while final evaluation is running or queued after training stops, on the same device or a separate evaluator host.
+- Follow the remaining evaluation stage automatically while retaining completed training/history and manual stage selections. Hide the pane once no live training or pending evaluation remains; stale or terminal evaluation readings do not keep it open.
+- Prioritize live training and pending evaluation over completed history within artifact-discovery bounds. Monitoring controls, metric meanings and the opt-in configuration are unchanged.
+
 ## Community preview 2.77.0-training.2 — 2026-11-11
 
 Supersedes preview 1: container distributions now include the full root licenses/notices, alongside the existing dataset and dependency notices. CI uses a normal user in a reaping Debian container so permission and zsh fixtures are exercised. The training module is unchanged.

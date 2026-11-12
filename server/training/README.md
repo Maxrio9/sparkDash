@@ -4,7 +4,7 @@ Optional, read-only monitoring in the [community feature fork](https://github.co
 
 The module discovers training jobs and converts their progress into one display format. Providers contain the framework and filesystem knowledge. The dashboard renders the reported runs, stages, units and metrics.
 
-The pane appears while a provider confirms any running training stage. While it is open, each run with live preparation, training or evaluation work can appear, including a run whose trainer has finished while another run still trains. Completed work and evaluation queues remain available through the API. Evaluation tiles can continue displaying progress after all training ends. The pane hides after the next status refresh confirms that all training has stopped. Unreachable or expired readings become stale and cease to establish training activity.
+The pane appears while a live source reports running training or an evaluation that is running or waiting in its queue. It remains visible after the trainer stops until the last live evaluation finishes, whether training and evaluation share a host or run on separate devices. While the pane is open, runs with live preparation, training or evaluation work can appear. Completed stages remain accessible through stage selection, and the automatic view follows the remaining evaluation work. Manual stage selections are preserved. The pane hides after the next status refresh reports no running training or running/waiting evaluation. Unreachable or expired readings become stale; stale, unknown, complete, stopped or failed evaluation rows do not establish active work.
 
 ## Enable and configure
 
@@ -89,7 +89,7 @@ def report(step, total_steps, loss, tokens_per_second, state="running"):
     temporary.replace(output / "training-progress.json")
 ```
 
-Call `report` from the training process as progress changes and with `state="complete"` when it finishes. Process exit is detected even if the last document still says running. Optional `process_start_ticks` can bind the document to Linux's precise process start identity. Shared run IDs join readings from multiple hosts.
+Call `report` from the training process as progress changes and with `state="complete"` when it finishes. Process exit is detected even if the last document still says running. Queued evaluation rows also require the live reporter/controller process identity; a saved waiting document alone cannot keep the pane active. Optional `process_start_ticks` can bind the document to Linux's precise process start identity. Shared run IDs join readings from multiple hosts.
 
 ## Runs, reporters and devices
 
@@ -262,9 +262,9 @@ Provider failures are isolated. The module keeps their previous readings as stal
 
 ## Boundaries and limits
 
-The feature polls at ten-second intervals while enabled. Providers do not overlap their own in-flight polls. Readings expire after thirty seconds and no longer establish active training. Each provider's normalized result allows up to 64 runs, 64 sources per run and 128 stages per group, within a one-MiB payload limit. The bundled filesystem probe uses narrower bounds (including 24 discovered runs per host, depth five, 3,000 entries, 48 metadata files and a bounded CSV tail) and skips weight/dependency/cache directories. Live training has priority when selecting bounded results. These limits are monitoring bounds, not guarantees that an arbitrary framework's output will be discovered.
+The feature polls at ten-second intervals while enabled. Providers do not overlap their own in-flight polls. Readings expire after thirty seconds and no longer establish active work. Each provider's normalized result allows up to 64 runs, 64 sources per run and 128 stages per group, within a one-MiB payload limit. The bundled filesystem probe uses narrower bounds (including 24 discovered runs per host, depth five, 3,000 entries, 48 metadata files and a bounded CSV tail) and skips weight/dependency/cache directories. Live training and pending evaluations have priority over completed history when selecting bounded results. These limits are monitoring bounds, not guarantees that an arbitrary framework's output will be discovered.
 
-Only confirmed running training establishes the main pane's visibility. Saved and completed results stay available through the API, and evaluation tiles may continue after the main pane hides. Evaluations completed at intermediate checkpoints do not imply final evaluation is done while training is still active. Stale or failed readings remain distinguishable from complete work.
+A live running training stage or a live running/waiting evaluation establishes the main pane's visibility. After training ends, final evaluations keep their run visible until they finish; queued evaluations also keep it open between evaluator jobs. Saved completed results alone do not keep the pane open and remain available through the API. Evaluations completed at intermediate checkpoints do not imply final evaluation is done while training is still active. Stale or failed readings remain distinguishable from complete work and do not establish activity.
 
 The module displays declared concurrency and actual counters; it does not modify an evaluator's concurrency. Report `promptConcurrency` and `promptsPerMinute` for prompt-based evaluation when measured. Otherwise the module can derive a rolling rate from observed prompt counters with a sufficiently long observation window, scoped to a single job attempt. It does not add replicated distributed counters or average unrelated objectives. Other evaluation units keep their native counters without invented prompt rates.
 

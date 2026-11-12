@@ -38,14 +38,16 @@ function measurementTime(source) {
   return Math.max(0, ...times);
 }
 
-function hasLiveTraining(run) {
+function hasActiveWork(run) {
   return run.sources.some((source) => source.status === "live" &&
-    source.stages.training.some((stage) => stage.state === "running"));
+    (source.stages.training.some((stage) => stage.state === "running") ||
+      source.stages.evaluation.some((stage) => stage.state === "running" || stage.state === "waiting")));
 }
 
 function sourcePriority(source) {
   if (source.status !== "live") return 0;
-  if (source.stages.training.some((stage) => stage.state === "running")) return 3;
+  if (source.stages.training.some((stage) => stage.state === "running") ||
+      source.stages.evaluation.some((stage) => stage.state === "running" || stage.state === "waiting")) return 3;
   return Object.values(source.stages).flat().some((stage) => stage.state === "running") ? 2 : 1;
 }
 
@@ -100,7 +102,7 @@ export function createArtifactProvider({ getRoots = artifactRootsFromEnv } = {})
         }
       }
       const ordered = [...grouped.values()].sort((left, right) =>
-        Number(hasLiveTraining(right)) - Number(hasLiveTraining(left)) ||
+        Number(hasActiveWork(right)) - Number(hasActiveWork(left)) ||
         Math.max(...right.sources.map(measurementTime)) - Math.max(...left.sources.map(measurementTime))
       );
       const selected = [];

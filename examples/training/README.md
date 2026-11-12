@@ -45,7 +45,7 @@ def report_step(step, total_steps, measured_loss):
 
 The helper adds its PID and Linux process-start identity, serializes strict JSON and replaces `training-progress.json` atomically in the output directory. It does not inspect your model, guess a total, calculate a loss or invent a heartbeat. `heartbeatAt` above is valid because the training worker is actively calling the reporting code. For a long training step, arrange a genuine worker heartbeat or omit a timeout that the worker cannot meet.
 
-A call replaces the entire document. Preserve completed preparation and evaluation rows in later snapshots when you want their history available. On success, write the final `state: "complete"`; on a caught failure, write `"failed"`. A process that exits cannot keep establishing live training just because its last saved state said running. Do not share one output file between concurrent writers.
+A call replaces the entire document. Preserve completed preparation and evaluation rows in later snapshots when you want their history available. On success, write the final `state: "complete"`; on a caught failure, write `"failed"`. A process that exits cannot keep establishing live training just because its last saved state said running. A live evaluator can keep the pane visible after its trainer exits; report running or waiting evaluation rows until the last evaluation finishes, then mark them complete. Completed evaluation history alone does not keep the pane open. Do not share one output file between concurrent writers.
 
 ## Separate trainer and evaluator
 

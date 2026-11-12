@@ -45,8 +45,14 @@ test("same-device, distributed and independent runs retain identities and indepe
   }
   await dashboard.poll();
   snapshot = dashboard.snapshot();
-  assert.equal(snapshot.active, false, "the pane keeps its existing hide-after-training policy");
-  assert.equal(snapshot.runs[0].sources[1].stages.evaluation[0].state, "running", "evaluation remains available to device cards");
+  assert.equal(snapshot.active, true, "the pane remains visible while final evaluations continue");
+  assert.equal(snapshot.runs.filter((entry) => entry.active).length, 3);
+  assert.equal(snapshot.runs[0].sources[1].stages.evaluation[0].state, "running");
+  for (const entry of [local, distributed, separateA, separateB]) {
+    for (const reporter of entry.sources) for (const stage of reporter.stages.evaluation) stage.state = "complete";
+  }
+  await dashboard.poll();
+  assert.equal(dashboard.snapshot().active, false, "the pane closes only after the final evaluation has ended");
 });
 
 test("a reporter retry resets only its own rate on a shared device", async () => {

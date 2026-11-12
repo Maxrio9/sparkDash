@@ -17,6 +17,11 @@ compatible ranges; no new direct dependency is introduced. Server tests use four
 concurrent files to reduce ephemeral-port fixture races during full validation.
 The default feature state is off, with no discovery roots. Preview 2 also copies the root license/notice files into the runtime image; CI runs in a reaping Debian container under a normal user to exercise shell and permission fixtures.
 
+Preview 3 keeps the pane visible through live running or queued final evaluation after
+training stops, follows evaluation in its automatic view and retains manual stage
+choices. Terminal or stale results do not keep it open. This changes monitoring
+visibility and discovery priority, not training/evaluation control or metric values.
+
 ## Modified upstream files
 
 - `.dockerignore`

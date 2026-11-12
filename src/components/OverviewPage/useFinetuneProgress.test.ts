@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FinetuneProgress, FinetuneSource, FinetuneStage, TrainingRun } from "../../api/types";
-import { runningEvaluationsBySpark } from "./useFinetuneProgress";
+import { hasLiveTrainingOrEvaluation, runningEvaluationsBySpark, trainingRuns } from "./useFinetuneProgress";
 
 function stage(id: string, state: FinetuneStage["state"] = "running", fields: Partial<FinetuneStage> = {}): FinetuneStage {
   return { id, label: "Validation", state, completed: 20, total: 100, unit: "prompts", ...fields };
@@ -18,6 +18,26 @@ function snapshot(runs: TrainingRun[]): FinetuneProgress {
 function run(id: string, sources: FinetuneSource[], active = true): TrainingRun {
   return { id, campaign: `Experiment ${id}`, model: `Model ${id}`, active, sources };
 }
+
+describe("training run visibility", () => {
+  it.each(["running", "waiting"] as const)("retains %s final evaluation after the trainer completes", (state) => {
+    const worker = source("same-host", "gpu-host", [stage("final", state)]);
+    worker.stages.training = [stage("train", "complete")];
+    expect(hasLiveTrainingOrEvaluation(run("same-device", [worker], false))).toBe(true);
+    const legacy: FinetuneProgress = { enabled: true, campaign: "Legacy evaluation", model: null, sources: [worker] };
+    expect(trainingRuns(legacy)[0].active).toBe(true);
+  });
+
+  it.each(["complete", "failed", "stopped", "unknown"] as const)("does not keep a completed trainer active for %s evaluation", (state) => {
+    const trainer = source("trainer", "training-host", []);
+    trainer.stages.training = [stage("train", "complete")];
+    expect(hasLiveTrainingOrEvaluation(run("distributed", [trainer, source("eval", "evaluation-host", [stage("final", state)])]))).toBe(false);
+  });
+
+  it.each(["stale", "unavailable"] as const)("does not treat %s evaluation snapshots as active work", (status) => {
+    expect(hasLiveTrainingOrEvaluation(run("cached", [source("eval", "gpu-host", [stage("running"), stage("queued", "waiting")], { status })]))).toBe(false);
+  });
+});
 
 describe("running evaluations by physical device", () => {
   it("retains independent runs and reporters with the same stage names on one training device", () => {

@@ -375,6 +375,64 @@ class ArtifactDiscoveryTest(unittest.TestCase):
         self.assertEqual(len(bounded['sources']), 1)
         self.assertEqual(bounded['sources'][0]['stages']['training'][0]['state'], 'running')
 
+    def test_final_evaluation_queue_keeps_priority_at_run_and_payload_bounds(self):
+        self.process()
+        for index in range(4):
+            self.write_json(self.jobs / f'worker-{index}/training-progress.json', {
+                'schema_version': 1, 'run_id': 'final-evaluation', 'source_id': f'worker-{index}',
+                'pid': 123, 'process_start_ticks': 100,
+                'stages': {'training': [{'id': 'train', 'label': 'Training', 'state': 'complete'}],
+                    'evaluation': [{'id': 'validation', 'label': 'Final validation',
+                        'state': 'waiting' if index == 0 else 'complete', 'updatedAt': 1000 + index,
+                        'metrics': [{'label': 'Settings', 'value': 'x' * 100}]}]},
+            })
+        full, = self.collect()
+        queued = next(source for source in full['sources'] if source['stages']['evaluation'][0]['state'] == 'waiting')
+        budget = len(json.dumps([{**full, 'sources': [queued]}]).encode()) + 8
+        with patch.object(module, 'MAX_PAYLOAD_BYTES', budget):
+            bounded, = self.collect()
+        self.assertEqual(len(bounded['sources']), 1)
+        self.assertEqual(bounded['sources'][0]['stages']['evaluation'][0]['state'], 'waiting')
+        for index in range(3):
+            self.write_json(self.jobs / f'completed-{index}/training-progress.json', {
+                'schema_version': 1, 'run_id': f'completed-{index}',
+                'stages': {'training': [{'id': 'train', 'label': 'Training', 'state': 'complete'}]},
+            })
+        with patch.object(module, 'MAX_RUNS', 1):
+            bounded, = self.collect()
+        self.assertEqual(bounded['id'], full['id'])
+        self.assertTrue(any(source['stages']['evaluation'][0]['state'] == 'waiting'
+                            for source in bounded['sources']))
+
+    def test_final_evaluation_queue_requires_its_live_controller_process(self):
+        self.process()
+        file = self.jobs / 'queue/training-progress.json'
+        document = {'schema_version': 1, 'pid': 123, 'process_start_ticks': 100,
+                    'stages': {'training': [{'id': 'train', 'label': 'Training', 'state': 'complete'}],
+                        'evaluation': [{'id': 'queue', 'label': 'Final validation', 'state': 'waiting'}]}}
+
+        def state():
+            self.write_json(file, document)
+            groups = self.collect()[0]['sources'][0]['stages']
+            self.assertEqual(groups['training'][0]['state'], 'complete')
+            return groups['evaluation'][0]['state']
+
+        self.assertEqual(state(), 'waiting')
+        document.pop('pid')
+        document.pop('process_start_ticks')
+        self.assertEqual(state(), 'unknown', 'saved queue metadata cannot establish live evaluation')
+        document.update(pid=123, process_start_ticks=99)
+        self.assertEqual(state(), 'stopped', 'a reused PID cannot establish a live queue')
+        document.update(pid=999, process_start_ticks=100)
+        self.assertEqual(state(), 'stopped', 'a confirmed missing controller ends its queue')
+        document.update(pid=123, process_start_ticks=100)
+        self.process(state='T')
+        self.assertEqual(state(), 'stopped', 'a paused queue controller is not active')
+        self.process()
+        self.assertEqual(state(), 'waiting')
+        with patch.object(module, 'read_process', return_value=None):
+            self.assertEqual(state(), 'unknown', 'unavailable process evidence cannot establish activity')
+
     def test_transformers_output_argument_proves_liveness_and_newest_state_after_resume(self):
         output = self.jobs / 'transformers'
         self.write_json(output / 'checkpoint-30/trainer_state.json', {'global_step': 30, 'max_steps': 30})

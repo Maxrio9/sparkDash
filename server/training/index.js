@@ -126,7 +126,10 @@ export function registerTrainingProgressRoutes(app, {
         })]));
         return { ...current, stages };
       });
-      const active = sources.some((source) => source.status === "live" && source.stages.training.some((stage) => stage.state === "running"));
+      const active = sources.some((source) => source.status === "live" && (
+        source.stages.training.some((stage) => stage.state === "running") ||
+        source.stages.evaluation.some((stage) => stage.state === "running" || stage.state === "waiting")
+      ));
       return { ...run, sources, active };
     });
     const first = runs.find((run) => run.active) ?? runs[0];

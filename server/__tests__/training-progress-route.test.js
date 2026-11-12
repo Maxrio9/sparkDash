@@ -43,7 +43,7 @@ test("disabled module does not discover providers or read hosts", async () => {
   assert.equal(trainingProgressEnabled({ TRAINING_PROGRESS_ENABLED: "1" }), true);
 });
 
-test("providers accept fractional progress and custom metrics while activity follows live training", async () => {
+test("providers accept fractional progress and custom metrics while activity follows training through evaluation", async () => {
   let stages = { ...empty, training: [{ ...training, metrics: [{ label: "Tokens/s", value: 1200, unit: "tokens/s" }] }] };
   const dashboard = fixture({ now: () => 1000, providers: [{ id: "custom", collect: async () => [run(stages)] }] });
   await dashboard.poll();
@@ -54,8 +54,61 @@ test("providers accept fractional progress and custom metrics while activity fol
   assert.equal(result.runs[0].sources[0].stages.training[0].completed, 1.5);
   stages = { ...empty, data: [{ ...training, state: "complete" }], evaluation: [evaluation] };
   await dashboard.poll();
-  assert.equal(dashboard.read().active, false);
+  assert.equal(dashboard.read().active, true);
   assert.equal(dashboard.read().runs[0].sources[0].stages.evaluation[0].promptConcurrency, 4);
+});
+
+test("final evaluations keep each run active through its queue until every evaluation is terminal", async () => {
+  for (const colocated of [true, false]) {
+    let state = "waiting";
+    let status = "live";
+    let time = 1000;
+    const dashboard = fixture({ now: () => time, providers: [{ id: "custom", collect: async () => [{
+      id: "final-validation", campaign: "Final validation", model: null, sources: [
+        { id: "trainer", label: "Trainer", sparkId: "unit-a", status: "live",
+          stages: { ...empty, training: [{ ...training, state: "complete" }] } },
+        { id: "evaluator", label: "Evaluator", sparkId: colocated ? "unit-a" : "unit-b", status,
+          stages: { ...empty, evaluation: [{ ...evaluation, state }, { ...evaluation, id: "baseline", state: "complete" }] } },
+      ],
+    }] }] });
+    for (const next of ["waiting", "running", "complete", "failed", "stopped", "unknown"]) {
+      state = next;
+      await dashboard.poll();
+      const snapshot = dashboard.read();
+      assert.equal(snapshot.active, next === "waiting" || next === "running", `${colocated ? "shared" : "separate"} host: ${next}`);
+      assert.equal(snapshot.runs[0].active, snapshot.active);
+    }
+    state = "running";
+    for (const sourceStatus of ["stale", "unavailable"]) {
+      status = sourceStatus;
+      await dashboard.poll();
+      assert.equal(dashboard.read().active, false, `${sourceStatus} evaluator cannot keep a finished trainer active`);
+    }
+    status = "live";
+    state = "waiting";
+    await dashboard.poll();
+    assert.equal(dashboard.read().active, true);
+    time += 31_000;
+    assert.equal(dashboard.read().active, false, "expired evaluation queue cannot establish activity");
+    dashboard.dispose();
+  }
+});
+
+test("one finished evaluation cannot hide another running or queued experiment", async () => {
+  let state = "waiting";
+  const dashboard = fixture({ now: () => 1000, providers: [{ id: "custom", collect: async () => [
+    run({ ...empty, training: [{ ...training, state: "complete" }], evaluation: [{ ...evaluation, state: "complete" }] }, { id: "done" }),
+    run({ ...empty, training: [{ ...training, state: "complete" }], evaluation: [{ ...evaluation, state }] }, { id: "pending" }),
+  ] }] });
+  await dashboard.poll();
+  assert.deepEqual(dashboard.read().runs.map((entry) => entry.active), [false, true]);
+  assert.equal(dashboard.read().campaign, "Any training job");
+  state = "running";
+  await dashboard.poll();
+  assert.equal(dashboard.read().active, true);
+  state = "complete";
+  await dashboard.poll();
+  assert.equal(dashboard.read().active, false);
 });
 
 test("one broken provider preserves stale history and cannot hold other training open", async () => {
