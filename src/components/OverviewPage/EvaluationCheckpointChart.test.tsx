@@ -35,7 +35,12 @@ it("plots measured checkpoint positions and a dashed baseline without plotting u
   const xStart = 48;
   expect((points[0][0] - xStart) / (points[1][0] - xStart)).toBeCloseTo(.1);
   expect(container.textContent).toContain("Checkpoint step");
-  expect(container.textContent).toContain("Same evaluation set.");
+  const details = container.querySelector<HTMLDetailsElement>("details")!;
+  expect(container.querySelectorAll("details")).toHaveLength(1);
+  expect(details.open).toBe(false);
+  expect(details.querySelector("summary")?.textContent).toBe("Details");
+  expect(details.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("Same evaluation set.");
+  expect(container.querySelector('[role="status"]')).toBeNull();
   const table = container.querySelector("table");
   expect(table?.querySelectorAll("tbody tr")).toHaveLength(4);
   expect(table?.textContent).not.toContain("pending");
@@ -52,12 +57,12 @@ it("keeps score trends prominent by default and expands the axis only when inter
   const initialY = point().getAttribute("cy");
   expect(checkbox.checked).toBe(false);
   expect(point().getAttribute("aria-label")).toContain("95% CI 2–6");
-  expect(container.querySelector("figcaption")?.textContent).toContain("95% intervals are hidden");
+  expect(container.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("95% intervals are hidden");
   act(() => checkbox.click());
   expect(checkbox.checked).toBe(true);
   expect(container.querySelectorAll(".ov-evaluation-chart__interval")).toHaveLength(1);
   expect(point().getAttribute("cy")).not.toBe(initialY);
-  expect(container.querySelector("figcaption")?.textContent).toContain("Whiskers show reported 95% intervals");
+  expect(container.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("Whiskers show reported 95% intervals");
   act(() => checkbox.click());
   expect(point().getAttribute("cy")).toBe(initialY);
 });
@@ -81,7 +86,7 @@ it("keeps a keyboard-focused score visible when the pointer leaves the chart", (
   expect(container.querySelector('[role="status"]')?.textContent).toContain("Cross entropy · Step 100: 3.9 tokens/round");
   expect(container.querySelector('[role="status"]')?.textContent).toContain("+0.1 vs Released baseline");
   act(() => point.dispatchEvent(new FocusEvent("focusout", { bubbles: true })));
-  expect(container.querySelector('[role="status"]')?.textContent).toContain("Select a point to inspect its score");
+  expect(container.querySelector('[role="status"]')).toBeNull();
 });
 
 it("lets readers toggle series without losing the exact score table", () => {
@@ -93,6 +98,14 @@ it("lets readers toggle series without losing the exact score table", () => {
   expect(container.querySelectorAll("tbody tr")).toHaveLength(4);
   act(() => button.click());
   expect(container.querySelectorAll('[data-series="ce"] circle')).toHaveLength(2);
+});
+
+it("keeps the all-hidden state actionable", () => {
+  const { container } = render(<EvaluationCheckpointChart sources={fixture()} />);
+  act(() => { container.querySelectorAll<HTMLButtonElement>("button[aria-pressed]").forEach((button) => button.click()); });
+  expect(container.querySelectorAll("circle")).toHaveLength(0);
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("All series are hidden");
+  expect(container.querySelectorAll("tbody tr")).toHaveLength(4);
 });
 
 it("separates distinct evaluation sets and score units before comparing to a baseline", () => {
@@ -109,6 +122,7 @@ it("separates distinct evaluation sets and score units before comparing to a bas
   expect(container.querySelector("tbody")?.textContent).toContain("8");
   expect(container.querySelector(".ov-evaluation-chart__baseline")).toBeNull();
   expect(container.querySelector("tbody")?.textContent).not.toContain("+");
+  expect(container.querySelector('[role="status"]')?.textContent).toBe("No matching baseline");
 });
 
 it("preserves a zero score and checkpoint, handles a baseline alone and omits unreported comparisons", () => {
@@ -145,7 +159,7 @@ it.each([
   expect(container.querySelector(".ov-evaluation-chart__best")?.textContent).toContain(`Best shown: ${better} · Cross entropy · Step 100`);
   expect(container.querySelector('[aria-label^="Cross entropy · Step 100:"]')?.getAttribute("aria-label")).toContain("Improved");
   expect(container.querySelector('[aria-label^="Cross entropy · Step 200:"]')?.getAttribute("aria-label")).toContain("Worse");
-  expect(container.querySelector("figcaption")?.textContent).toContain("Settings: Greedy · dataset v2. Same reported evaluation settings.");
+  expect(container.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("Settings: Greedy · dataset v2. Same reported evaluation settings.");
   const rows = [...container.querySelectorAll("tbody tr")].map((row) => row.textContent);
   expect(rows.some((row) => row?.includes("Improved"))).toBe(true);
   expect(rows.some((row) => row?.includes("Worse"))).toBe(true);
@@ -173,7 +187,7 @@ it.each([undefined, "observe"] as const)("leaves direction %s unranked while pre
   expect(container.textContent).not.toContain("Improved");
   expect(container.textContent).not.toContain("Worse");
   expect(container.querySelector('[aria-label^="Cross entropy · Step 100:"]')?.getAttribute("aria-label")).toContain("+0.1 vs Released baseline");
-  expect(container.querySelector("figcaption")?.textContent).toContain("Evaluation settings identity was not reported.");
+  expect(container.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("Evaluation settings identity was not reported.");
 });
 
 it("offers several metrics from one evaluation without duplicating a legacy primary score", () => {
@@ -212,7 +226,7 @@ it("separates settings, objective directions and target values before finding a 
   act(() => { select.value = other.value; select.dispatchEvent(new Event("change", { bubbles: true })); });
   expect(container.querySelector(".ov-evaluation-chart__baseline")).toBeNull();
   expect(container.querySelector("tbody")?.textContent).not.toContain("Improved");
-  expect(container.querySelector("figcaption")?.textContent).toContain("Settings: Settings B.");
+  expect(container.querySelector(".ov-evaluation-chart__note")?.textContent).toContain("Settings: Settings B.");
 });
 
 it("keeps epoch coordinates separate from step coordinates and labels them correctly", () => {

@@ -21,6 +21,9 @@
   font-size: 10px;
   overflow-wrap: anywhere;
 }
-.ov-device-evaluation__health { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; margin: 5px 0; color: var(--color-muted-strong); font-size: 10px; overflow-wrap: anywhere; }
+.ov-device-evaluation__health { margin: 5px 0; color: var(--color-muted-strong); font-size: 10px; overflow-wrap: anywhere; }
+.ov-device-evaluation__health > summary { width: fit-content; cursor: pointer; }
+.ov-device-evaluation__health > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.ov-device-evaluation__health > p { margin: 5px 0 0; }
 .ov-device-evaluations__more { margin-top: 9px; color: var(--color-muted-strong); font-size: 11px; }
 .ov-device-evaluations__more > summary { cursor: pointer; }

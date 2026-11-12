@@ -228,31 +228,10 @@
   color: var(--color-muted);
 }
 .ov .ov-finetune-activity b { color: var(--color-text-strong); font-weight: 550; }
-.ov .ov-finetune-activity > span:last-child:not(:first-child) { flex-basis: 100%; }
-.ov .ov-finetune-resources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 6px 0;
-  padding: 0;
-  list-style: none;
-}
-.ov .ov-finetune-resources li {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 3px 5px;
-  min-width: 0;
-  padding: 3px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 5px;
-  color: var(--color-text);
-  font-size: 10px;
-  overflow-wrap: anywhere;
-}
-.ov .ov-finetune-resources li > span { color: var(--color-muted); }
-.ov .ov-finetune-health { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; }
-.ov .ov-finetune-health[data-health="stalled"],
-.ov .ov-finetune-health[data-health="unresponsive"] { border-left: 2px solid var(--color-warning); padding-left: 7px; margin: 5px 0; }
+/* Routine health and raw hardware identifiers stay out of the main view. */
+.ov .ov-finetune-health { border-left: 2px solid var(--color-warning); padding-left: 7px; margin: 5px 0; }
+.ov .ov-finetune-health summary { cursor: pointer; }
+.ov .ov-finetune-health p { margin: 6px 0 0; }
 .ov .ov-finetune-inputs { margin-top: 5px; }
 .ov .ov-finetune-dependencies { display: grid; gap: 4px; padding: 0; margin: 4px 0 0; list-style: none; }
 .ov .ov-finetune-dependencies li { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 3px 8px; color: var(--color-muted-strong); font-size: 11px; }

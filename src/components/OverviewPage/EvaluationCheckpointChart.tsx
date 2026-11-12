@@ -140,6 +140,8 @@ export function EvaluationCheckpointChart({ sources }: { sources: FinetuneSource
   const selectedPoint = focused ?? active;
   const hovered = group.points.find((point) => point.key === selectedPoint && !hidden.has(`${group.key}:${point.seriesId}`));
   const selectedDescription = hovered ? pointDescription(hovered, names.get(hovered.seriesId)!, baseline, t) : null;
+  const readout = selectedDescription ?? (visible.length === 0 ? t("chart.hidden") : checkpoints.length === 0
+    ? t("chart.onlyBaseline") : !baseline ? t("chart.noBaseline") : null);
   const choiceLabels = groups.map((item) => `${item.metricLabel}${item.unit ? ` (${item.unit})` : ""} · ${goalLabel(t, item.goal, item.target, item.unit)} · ${item.checkpointUnit ?? "steps"}${item.contextLabel ? ` · ${item.contextLabel}` : ""}`);
   const groupLabel = (_item: ComparisonGroup, index: number) => {
     const label = choiceLabels[index];
@@ -234,25 +236,20 @@ export function EvaluationCheckpointChart({ sources }: { sources: FinetuneSource
         })}
       </svg>
       </div>
-      <div className="ov-evaluation-chart__readout" role="status">
-        {selectedDescription ?? (visible.length === 0 ? t("chart.hidden") : checkpoints.length === 0
-          ? t("chart.onlyBaseline") : baseline
-            ? t("chart.inspectBaseline")
-            : t("chart.inspect"))}
-      </div>
-      <figcaption className="ov-evaluation-chart__note">
-        {group.cohortId ? t("chart.sameSet") : t("chart.unknownSet")}{" "}
-        {group.contextLabel ? `${t("chart.settings", { label: group.contextLabel })} ` : ""}
-        {group.contextId ? `${t("chart.sameSettings")} ` : `${t("chart.unknownSettings")} `}
-        {t("chart.lines")}
-        {group.goal && group.goal !== "observe" ? ` ${t("chart.estimates")}` : ""}
-        {showIntervals ? ` ${t("chart.whiskers")}` : ` ${t("chart.intervalsHidden")}`}
-      </figcaption>
-      <details className="ov-evaluation-chart__table">
-        <summary>{t("chart.table", { count: group.points.length })}</summary>
-        <div className="ov-evaluation-chart__table-scroll">
+      {readout ? <div className="ov-evaluation-chart__readout" role="status">{readout}</div> : null}
+      <details className="ov-evaluation-chart__details">
+        <summary>{t("chart.details")}</summary>
+        <p className="ov-evaluation-chart__note">
+          {group.cohortId ? t("chart.sameSet") : t("chart.unknownSet")}{" "}
+          {group.contextLabel ? `${t("chart.settings", { label: group.contextLabel })} ` : ""}
+          {group.contextId ? `${t("chart.sameSettings")} ` : `${t("chart.unknownSettings")} `}
+          {t("chart.lines")}
+          {group.goal && group.goal !== "observe" ? ` ${t("chart.estimates")}` : ""}
+          {showIntervals ? ` ${t("chart.whiskers")}` : ` ${t("chart.intervalsHidden")}`}
+        </p>
+        <div className="ov-evaluation-chart__table ov-evaluation-chart__table-scroll">
           <table>
-            <caption>{group.metricLabel}{group.unit ? ` (${group.unit})` : ""}</caption>
+            <caption>{t("chart.table", { count: group.points.length })} · {group.metricLabel}{group.unit ? ` (${group.unit})` : ""}</caption>
             <thead><tr><th scope="col">{t("chart.run")}</th><th scope="col">{coordinateLabel}</th><th scope="col">{group.metricLabel}</th><th scope="col">{t("chart.baselineChange")}</th><th scope="col">{t("chart.outcome")}</th></tr></thead>
             <tbody>{[...group.points].sort((a, b) => Number(!!b.baseline) - Number(!!a.baseline) ||
               a.seriesId.localeCompare(b.seriesId) || (a.checkpoint ?? 0) - (b.checkpoint ?? 0)).map((point) => (

@@ -574,10 +574,10 @@ function SparkCardImpl({
           {hasEvaluation ? (
             <div className="ov-device-evaluations" role="group" aria-label={tTraining("device.evaluation")}>
               {evaluations.length > 1 ? <div className="eyebrow">{tTraining("device.running", { count: evaluations.length })}</div> : null}
-              {evaluations.slice(0, 2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} />)}
+              {evaluations.slice(0, 2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} showIdentity={evaluations.some((other) => other !== evaluation && other.label === evaluation.label && other.campaign === evaluation.campaign)} />)}
               {evaluations.length > 2 ? <details className="ov-device-evaluations__more">
                 <summary>{tTraining("device.more", { count: evaluations.length - 2 })}</summary>
-                {evaluations.slice(2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} />)}
+                {evaluations.slice(2).map((evaluation, index) => <EvaluationSummary key={evaluation.id ?? index} evaluation={evaluation} showIdentity={evaluations.some((other) => other !== evaluation && other.label === evaluation.label && other.campaign === evaluation.campaign)} />)}
               </details> : null}
             </div>
           ) : null}

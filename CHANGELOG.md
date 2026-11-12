@@ -2,6 +2,12 @@
 
 <!-- Modified by Maxrio9, 2026: community training preview release. -->
 
+## Community preview 2.77.0-training.4 — 2026-11-12
+
+- Simplify the training pane and device evaluation tiles: remove hardware identifiers, routine update/health prose, ready-input lists and repeated activity descriptions from the main view.
+- Keep progress, scores, speed, concurrency, blockers, ETA and finish times visible. Warning reasons, scoring settings, exact checkpoint tables and extra custom metrics expand on demand.
+- Preserve stale/failed states, keyboard and touch access, independent stage selection and final-evaluation visibility. Collection, metric values and job control are unchanged.
+
 ## Community preview 2.77.0-training.3 — 2026-11-12
 
 - Keep the training progress pane visible while final evaluation is running or queued after training stops, on the same device or a separate evaluator host.

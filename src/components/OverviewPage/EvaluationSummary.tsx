@@ -4,33 +4,35 @@ import type { HostEvaluation } from "./useFinetuneProgress";
 const evaluationCount = new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 });
 
 /** A single reported job; rates are never aggregated across independent evaluations. */
-export function EvaluationSummary({ evaluation }: { evaluation: HostEvaluation }) {
+export function EvaluationSummary({ evaluation, showIdentity = false }: { evaluation: HostEvaluation; showIdentity?: boolean }) {
   const { t } = useTranslation("training");
   const completed = evaluation.completed ?? null;
   const total = evaluation.total ?? null;
   const quantity = completed === null && total === null ? null :
     `${completed === null ? "—" : evaluationCount.format(completed)}${total === null ? "" : ` / ${evaluationCount.format(total)}`}${evaluation.unit ? ` ${evaluation.unit}` : ""}`;
   const identity = [...new Set([evaluation.campaign, evaluation.model, evaluation.sourceLabel].filter(Boolean))].join(" · ");
+  const campaign = evaluation.campaign !== evaluation.model && evaluation.campaign !== evaluation.label ? evaluation.campaign : undefined;
+  const visibleIdentity = showIdentity ? identity : campaign;
+  const activity = evaluation.activity && !["running", "training", "evaluating", "scoring", "validating"].includes(evaluation.activity.kind)
+    && evaluation.activity.label !== evaluation.label ? evaluation.activity : undefined;
   const promptTelemetry = evaluation.promptsPerMinute !== undefined || evaluation.promptConcurrency !== undefined
     || evaluation.unit === undefined || evaluation.unit === "prompts";
-  const resourceScopes = { visible: t("resource.visible"), affinity: t("resource.affinity"), assigned: t("resource.assigned") };
   return (
     <div className="ov-device-evaluation" data-evaluation-id={evaluation.id}>
-      <div className="ov-device-evaluation__heading">
+      <div className="ov-device-evaluation__heading" title={identity}>
         <b>{evaluation.label}</b>
         {quantity ? <span className="mono">{quantity}</span> : null}
       </div>
-      <p className="ov-device-evaluation__identity">{identity}</p>
-      {evaluation.activity ? <p className="ov-device-evaluation__identity" data-worker-activity={evaluation.activity.kind}>
-        {evaluation.activity.label}{evaluation.activity.detail ? ` · ${evaluation.activity.detail}` : ""}
+      {visibleIdentity ? <p className="ov-device-evaluation__identity">{visibleIdentity}</p> : null}
+      {activity ? <p className="ov-device-evaluation__identity" data-worker-activity={activity.kind} title={activity.detail}>
+        {activity.label}
       </p> : null}
-      {evaluation.resources?.length ? <p className="ov-device-evaluation__identity">
-        {evaluation.resources.slice(0, 2).map((resource) => `${resource.scope ? `${resourceScopes[resource.scope]} ` : ""}${resource.label ?? `${resource.kind === "accelerator" ? t("resource.accelerator") : resource.kind.toUpperCase()} ${resource.id}`}`).join(" · ")}
-      </p> : null}
-      {evaluation.health && ["stalled", "unresponsive"].includes(evaluation.health.state) ? <p className="ov-device-evaluation__health" title={evaluation.health.detail}>
-        <span className="tag tag--warn">{evaluation.health.state === "stalled" ? t("health.stalled") : t("health.unresponsive")}</span>
-        {evaluation.health.detail}
-      </p> : null}
+      {evaluation.health && ["stalled", "unresponsive"].includes(evaluation.health.state) ? evaluation.health.detail ? (
+        <details className="ov-device-evaluation__health">
+          <summary><span className="tag tag--warn">{evaluation.health.state === "stalled" ? t("health.stalled") : t("health.unresponsive")}</span></summary>
+          <p>{evaluation.health.detail}</p>
+        </details>
+      ) : <p className="ov-device-evaluation__health"><span className="tag tag--warn">{evaluation.health.state === "stalled" ? t("health.stalled") : t("health.unresponsive")}</span></p> : null}
       {evaluation.dependencies?.some((input) => input.state === "waiting" || input.state === "failed") ? <p className="ov-device-evaluation__identity">
         {evaluation.dependencies.filter((input) => input.state === "waiting" || input.state === "failed").slice(0, 2)
           .map((input) => input.state === "failed" ? t("device.inputFailed", { label: input.label }) : t("device.waitingFor", { label: input.label })).join(" · ")}

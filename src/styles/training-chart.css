@@ -16,7 +16,7 @@
 .ov-evaluation-chart__objective,
 .ov-evaluation-chart__note,
 .ov-evaluation-chart__readout,
-.ov-evaluation-chart__table { color: var(--color-muted-strong); font-size: 11px; }
+.ov-evaluation-chart__details { color: var(--color-muted-strong); font-size: 11px; }
 .ov-evaluation-chart__objective { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; line-height: 1.4; }
 .ov-evaluation-chart__objective > span:first-child { color: var(--color-text); }
 .ov-evaluation-chart__best { overflow-wrap: anywhere; }
@@ -56,12 +56,13 @@
 .ov-evaluation-chart__point:focus-visible { outline: none; stroke: var(--color-text-strong); stroke-width: 2.5; }
 .ov-evaluation-chart__series:focus-visible,
 .ov-evaluation-chart__select select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
-.ov-evaluation-chart__readout { min-height: 30px; line-height: 1.4; overflow-wrap: anywhere; }
-.ov-evaluation-chart__note { margin: 5px 0 0; opacity: .85; }
+.ov-evaluation-chart__readout { margin-top: 4px; line-height: 1.4; overflow-wrap: anywhere; }
+.ov-evaluation-chart__note { margin: 7px 0 0; line-height: 1.4; }
 .ov-evaluation-chart__select { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--color-muted); }
 .ov-evaluation-chart__select select { max-width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text); font: inherit; }
-.ov-evaluation-chart__table { margin-top: 9px; }
-.ov-evaluation-chart__table summary { cursor: pointer; }
+.ov-evaluation-chart__details { margin-top: 9px; }
+.ov-evaluation-chart__details > summary { width: fit-content; cursor: pointer; }
+.ov-evaluation-chart__details > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 .ov-evaluation-chart__table-scroll { max-width: 100%; overflow-x: auto; }
 .ov-evaluation-chart__table table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 10px; text-align: left; }
 .ov-evaluation-chart__table caption { text-align: left; margin-bottom: 5px; }

@@ -35,7 +35,9 @@
     "finishLabel": "{{label}} 预计完成时间",
     "statistics": "{{label}} 统计数据",
     "completedAt": "完成于 {{time}}",
-    "updatedAt": "上次更新 {{time}}"
+    "updatedAt": "上次更新 {{time}}",
+    "details": "详情",
+    "moreMetrics": "更多指标（{{count}}）"
   },
   "health": {
     "healthy": "更新正常",
@@ -130,7 +132,9 @@
     "table": "得分表（{{count}}）",
     "run": "运行",
     "baselineChange": "相对基线变化",
-    "outcome": "结果"
+    "outcome": "结果",
+    "details": "详情",
+    "noBaseline": "没有匹配的基线"
   },
   "device": {
     "evaluation": "评估",

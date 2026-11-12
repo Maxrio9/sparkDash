@@ -76,7 +76,7 @@ Monitored units run **Linux**, **macOS**, or **Windows** (a Windows PC with an N
 
 ## Training and evaluation module
 
-This fork adds progress for multiple experiments and workers across configured devices, with selectable preparation/training/evaluation panels, checkpoint comparisons against a baseline, declared worker resources and dependencies, health indicators, ETA and estimated finish time. Evaluation tiles continue showing each device's evaluation work. The main progress pane stays visible while training is running or any evaluation is running or queued, including final evaluations after the trainer stops. It hides when no live training or pending evaluation remains.
+This fork adds progress for multiple experiments and workers across configured devices, with selectable preparation/training/evaluation panels, checkpoint comparisons against a baseline, meaningful worker activity, blockers, ETA and estimated finish time. Evaluation tiles continue showing each device's evaluation work. Routine resource identifiers and healthy-update narration stay out of the main view; warning reasons, scoring settings and exact checkpoint tables expand on demand. The main progress pane stays visible while training is running or any evaluation is running or queued, including final evaluations after the trainer stops. It hides when no live training or pending evaluation remains.
 
 ![Synthetic training and evaluation example](.github/training-preview.png)
 

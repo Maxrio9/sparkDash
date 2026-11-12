@@ -64,7 +64,7 @@ const snapshot: FinetuneProgress = {
 
 afterEach(() => vi.useRealTimers());
 
-it("shows worker activity, CPU/GPU assignments and declared input dependencies", () => {
+it("shows current work and blocking inputs without raw hardware or ready-input clutter", () => {
   const worker: FinetuneProgress = { ...snapshot, sources: snapshot.sources.map((source) => source.id !== "spark1" ? source : {
     ...source,
     resources: [{ kind: "gpu", id: "GPU-worker-uuid", label: "GPU 1", scope: "assigned" }],
@@ -76,12 +76,14 @@ it("shows worker activity, CPU/GPU assignments and declared input dependencies",
     }] },
   }) };
   const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
-  expect(container.querySelector('[aria-label="Spark 1 resources"]')?.textContent).toContain("AssignedGPU 1");
-  expect(container.querySelector('[aria-label="Cross entropy resources"]')?.textContent).toContain("AffinityCPU cores 0–7");
+  expect(container.querySelector(".ov-finetune-resource-list")).toBeNull();
+  expect(container.textContent).not.toContain("GPU-worker-uuid");
+  expect(container.textContent).not.toContain("GPU 1");
+  expect(container.textContent).not.toContain("CPU cores 0–7");
   expect(container.querySelector('[data-activity="saving"]')?.textContent).toContain("Saving checkpoint");
-  expect(container.textContent).toContain("Publishing checkpoint 600");
+  expect(container.textContent).not.toContain("Publishing checkpoint 600");
   const inputs = container.querySelector('[aria-label="Required inputs"]');
-  expect(inputs?.textContent).toContain("Prepared training examplesReady");
+  expect(inputs?.textContent).not.toContain("Prepared training examples");
   expect(inputs?.textContent).toContain("Checkpoint transferWaiting");
   expect(container.textContent).not.toContain("Scheduler");
 });
@@ -94,7 +96,12 @@ it.each(["stalled", "unresponsive"] as const)("shows %s progress health and susp
   }) };
   const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
   expect(container.querySelector(`[data-health="${state}"]`)?.textContent).toContain(state === "stalled" ? "No recent progress" : "Heartbeat overdue");
-  expect(container.textContent).toContain("The declared reporting interval has elapsed.");
+  const warning = container.querySelector<HTMLDetailsElement>(`[data-health="${state}"]`)!;
+  expect(warning.open).toBe(false);
+  expect(warning.querySelector("summary")?.textContent).not.toContain("declared reporting interval");
+  expect(warning.querySelector("p")?.textContent).toBe("The declared reporting interval has elapsed.");
+  act(() => { warning.open = true; });
+  expect(warning.open).toBe(true);
   expect(container.querySelector('[aria-label="Cross entropy estimated finish"]')).toBeNull();
   expect(container.textContent).not.toContain("ETA 1h 31m");
   expect(container.querySelector('[aria-label="Cross entropy progress"]')).not.toBeNull();
@@ -106,9 +113,79 @@ it("keeps a stale worker's activity historical and does not present its cached h
       activity: { kind: "saving", label: "Saving checkpoint" }, health: { state: "healthy", detail: "Heartbeat received." },
     }] } }) };
   const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
-  expect(container.querySelector('[data-activity="saving"]')?.textContent).toContain("Last reported activity");
+  expect(container.querySelector('[data-activity="saving"]')?.textContent).toBe("Saving checkpoint");
+  expect(container.textContent).toContain("Stale");
+  expect(container.textContent).not.toContain("Last reported activity");
   expect(container.querySelector('[data-health="healthy"]')).toBeNull();
   expect(container.querySelector('[aria-label="Cross entropy estimated finish"]')).toBeNull();
+});
+
+it.each(["healthy", "waiting", "unknown"] as const)("omits routine %s update diagnostics without hiding work or ETA", (state) => {
+  const worker: FinetuneProgress = { ...snapshot, sources: [{ ...snapshot.sources[1],
+    stages: { ...snapshot.sources[1].stages, training: [{ ...snapshot.sources[1].stages.training[0],
+      health: { state, detail: "Update rate timing is reported without an expected update interval." },
+      activity: { kind: "training", label: "Training microbatches" },
+      detail: "Training microbatches",
+      dependencies: [{ id: "data", label: "Prepared corpus", state: "ready" }],
+    }] },
+  }] };
+  const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
+  expect(container.querySelector(".ov-finetune-health")).toBeNull();
+  expect(container.querySelector(".ov-finetune-inputs")).toBeNull();
+  expect(container.textContent).not.toContain("Updates current");
+  expect(container.textContent).not.toContain("expected update interval");
+  expect(container.textContent).not.toContain("Prepared corpus");
+  expect(container.textContent?.match(/Training microbatches/g)).toHaveLength(1);
+  expect(container.textContent).toContain("450 / 900 steps");
+  expect(container.textContent).toContain("Loss 4.125");
+  expect(container.textContent).toContain("ETA 1h 31m");
+  expect(container.querySelector('[aria-label="Cross entropy estimated finish"]')).not.toBeNull();
+});
+
+it("keeps extra provider metrics accessible without crowding current work", () => {
+  const worker: FinetuneProgress = { ...snapshot, sources: [{ ...snapshot.sources[1],
+    stages: { ...snapshot.sources[1].stages, training: [{ ...snapshot.sources[1].stages.training[0], metrics: [
+      { label: "Accuracy", value: 0.81 }, { label: "Learning rate", value: 0.001 }, { label: "Tokens/s", value: 120 },
+      { label: "Gradient norm", value: 2.5 }, { label: "Samples/s", value: 12 },
+    ] }] },
+  }] };
+  const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
+  const details = [...container.querySelectorAll<HTMLDetailsElement>("details")]
+    .find((item) => item.querySelector("summary")?.textContent === "More metrics (2)")!;
+  expect(details.open).toBe(false);
+  expect(details.textContent).toContain("Gradient norm 2.5");
+  expect(details.textContent).toContain("Samples/s 12");
+  expect(details.textContent).not.toContain("Accuracy");
+  expect(container.querySelector(".ov-finetune-stage__detail")?.textContent).toContain("Loss 4.125");
+  expect(container.textContent).toContain("Accuracy 0.81");
+  expect(container.textContent).toContain("ETA 1h 31m");
+});
+
+it("keeps failure reasons visible and completion methodology collapsed", () => {
+  const worker: FinetuneProgress = { ...snapshot, sources: [{ ...snapshot.sources[0], stages: {
+    data: [], training: [], evaluation: [
+      stage("failed", "Earlier checkpoint", "failed", { detail: "Checkpoint could not be loaded.",
+        activity: { kind: "evaluating", label: "Loading checkpoint", detail: "Permission denied for checkpoint folder." } }),
+      stage("current", "Current checkpoint", "running", { completed: 25, total: 100, unit: "prompts",
+        activity: { kind: "evaluating", label: "Scoring prompts" }, detail: "Scoring prompts" }),
+      stage("done", "Last completed result", "complete", { updatedAt: 1794356160000,
+        detail: "Scores measure emitted tokens per speculative round.", metrics: [{ label: "Score", value: 4.2 }] }),
+    ],
+  } }] };
+  const { container } = render(<FinetuneProgressCard snapshot={worker} requestFailed={false} />);
+  const rows = [...container.querySelectorAll(".ov-finetune-stage")];
+  expect(rows.find((row) => row.textContent?.includes("Earlier checkpoint"))?.textContent).toContain("Checkpoint could not be loaded.");
+  const failure = rows.find((row) => row.textContent?.includes("Earlier checkpoint"))!;
+  expect(failure.textContent).toContain("Permission denied for checkpoint folder.");
+  expect(failure.querySelector("details")).toBeNull();
+  expect(container.textContent?.match(/Scoring prompts/g)).toHaveLength(1);
+  const result = rows.find((row) => row.textContent?.includes("Last completed result"))!;
+  expect(result.querySelector(".ov-finetune-statistics")?.textContent).toContain("Score 4.2");
+  expect(result.querySelector("time")?.textContent).toContain("Completed");
+  const detail = result.querySelector<HTMLDetailsElement>("details")!;
+  expect(detail.open).toBe(false);
+  expect(detail.querySelector("summary")?.textContent).toBe("Details");
+  expect(detail.textContent).toContain("Scores measure emitted tokens");
 });
 
 it("prioritizes current training and evaluation while completed preparation stays accessible", async () => {
@@ -122,9 +199,8 @@ it("prioritizes current training and evaluation while completed preparation stay
   expect(container.querySelectorAll(".ov-finetune-group")).toHaveLength(2);
   expect(container.textContent).toContain("462 / 810 prompts");
   expect(container.textContent).toContain("57%");
-  const updated = container.querySelector<HTMLTimeElement>("time:not([aria-label])");
-  expect(updated?.textContent).toContain("Last update");
-  expect(updated?.dateTime).toBe(new Date(1794356160000).toISOString());
+  expect(container.textContent).not.toContain("Last update");
+  expect(container.querySelector('[aria-label="Cross entropy estimated finish"]')).not.toBeNull();
   expect(container.textContent).toContain("PR checkpoint 1986");
   expect(container.textContent).toContain("Latest checkpoint 300");
   expect(container.textContent).toContain("Next checkpoint 600");

@@ -35,7 +35,9 @@
     "finishLabel": "{{label}} estimated finish",
     "statistics": "{{label}} statistics",
     "completedAt": "Completed {{time}}",
-    "updatedAt": "Last update {{time}}"
+    "updatedAt": "Last update {{time}}",
+    "details": "Details",
+    "moreMetrics": "More metrics ({{count}})"
   },
   "health": {
     "healthy": "Updates current",
@@ -130,7 +132,9 @@
     "table": "Score table ({{count}})",
     "run": "Run",
     "baselineChange": "Change vs baseline",
-    "outcome": "Outcome"
+    "outcome": "Outcome",
+    "details": "Details",
+    "noBaseline": "No matching baseline"
   },
   "device": {
     "evaluation": "Evaluation",

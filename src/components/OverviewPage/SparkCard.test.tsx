@@ -225,7 +225,7 @@ describe("per-device evaluation", () => {
     promptsPerMinute: 6.2, promptConcurrency: 1,
   };
 
-  it("keeps worker activity, resource identity and progress-health warnings visible in the device tile", () => {
+  it("keeps meaningful worker activity and blockers visible with warning details collapsed", () => {
     const evaluationJobs: HostEvaluation[] = [{ ...desktopEvaluation, id: "worker-eval",
       activity: { kind: "transferring", label: "Transferring checkpoint" },
       resources: [{ kind: "gpu", id: "GPU-a", label: "GPU 2", scope: "assigned" }],
@@ -235,10 +235,35 @@ describe("per-device evaluation", () => {
     const { container } = render(<SparkCard spark={makeSpark("gpu-lab")} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
     const evaluation = container.querySelector('[aria-label="Evaluation"]');
     expect(evaluation?.textContent).toContain("Transferring checkpoint");
-    expect(evaluation?.textContent).toContain("Assigned GPU 2");
+    expect(evaluation?.textContent).not.toContain("Assigned GPU 2");
     expect(evaluation?.textContent).toContain("Waiting for: Checkpoint 4000");
     expect(evaluation?.textContent).toContain("Heartbeat overdue");
-    expect(evaluation?.textContent).toContain("Worker heartbeat is overdue.");
+    const health = evaluation?.querySelector<HTMLDetailsElement>(".ov-device-evaluation__health");
+    expect(health?.open).toBe(false);
+    expect(health?.querySelector("summary")?.textContent).toBe("Heartbeat overdue");
+    act(() => { health!.open = true; });
+    expect(health?.querySelector("p")?.textContent).toBe("Worker heartbeat is overdue.");
+  });
+
+  it("keeps scoring counters, speed and concurrency without repeating routine worker or hardware details", () => {
+    const evaluation: HostEvaluation = { ...desktopEvaluation, id: "scoring", campaign: "Acceptance run", sourceLabel: "Desktop evaluator",
+      completed: 25, total: 100, unit: "prompts",
+      activity: { kind: "evaluating", label: "Scoring prompts", detail: "Scoring prompts with the current model." },
+      resources: [{ kind: "cpu", id: "0-7", scope: "affinity" }, { kind: "gpu", id: "GPU-private", scope: "visible" }],
+      health: { state: "healthy", detail: "Updates are within the reported interval." },
+    };
+    const { container } = render(<SparkCard spark={makeSpark("desktop")} evaluationJobs={[evaluation]} temperatureUnit="celsius" />);
+    const tile = container.querySelector('[aria-label="Evaluation"]');
+    expect(tile?.textContent).toContain("Acceptance run");
+    expect(tile?.textContent).toContain("25 / 100 prompts");
+    expect(tile?.textContent).toContain("6.2 prompts/min");
+    expect(tile?.textContent).toContain("1 prompt at a time");
+    expect(tile?.textContent).not.toContain("Scoring prompts");
+    expect(tile?.textContent).not.toContain("Desktop evaluator");
+    expect(tile?.textContent).not.toContain("GPU-private");
+    expect(tile?.textContent).not.toContain("0-7");
+    expect(tile?.textContent).not.toContain("Updates are within");
+    expect(tile?.querySelector(".ov-device-evaluation__heading")?.getAttribute("title")).toContain("Desktop evaluator");
   });
 
   it("shows evaluation metrics and model without treating scoring as inference", async () => {
@@ -282,8 +307,10 @@ describe("per-device evaluation", () => {
     const { container } = render(<SparkCard spark={spark} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
     const evaluation = container.querySelector('[aria-label="Evaluation"]');
     expect(evaluation?.textContent).toContain("2 evaluations running");
-    expect(evaluation?.textContent).toContain("Medical SFT · SFT model");
-    expect(evaluation?.textContent).toContain("Preference alignment · DPO model");
+    expect(evaluation?.textContent).toContain("Medical SFT");
+    expect(evaluation?.textContent).not.toContain("SFT model");
+    expect(evaluation?.textContent).toContain("Preference alignment");
+    expect(evaluation?.textContent).not.toContain("DPO model");
     expect(evaluation?.textContent).toContain("20 / 100 prompts");
     expect(evaluation?.textContent).toContain("40 / 200 prompts");
     expect(evaluation?.textContent).toContain("5.0 prompts/min");
@@ -292,6 +319,16 @@ describe("per-device evaluation", () => {
     expect(container.textContent).toContain("Decode");
     expect(container.querySelector(".ov-modelrow")?.textContent).toContain(spark.metrics.llm[0].modelId);
     expect(container.querySelector(".ov-launch")).toBeNull();
+  });
+
+  it("disambiguates colocated jobs that share a campaign and evaluation label", () => {
+    const evaluationJobs: HostEvaluation[] = [
+      { ...desktopEvaluation, id: "one", campaign: "Shared campaign", label: "Validation", model: "First model", sourceLabel: "Worker one" },
+      { ...desktopEvaluation, id: "two", campaign: "Shared campaign", label: "Validation", model: "Second model", sourceLabel: "Worker two" },
+    ];
+    const { container } = render(<SparkCard spark={makeSpark("desktop")} evaluationJobs={evaluationJobs} temperatureUnit="celsius" />);
+    expect(container.querySelector('[data-evaluation-id="one"] .ov-device-evaluation__identity')?.textContent).toBe("Shared campaign · First model · Worker one");
+    expect(container.querySelector('[data-evaluation-id="two"] .ov-device-evaluation__identity')?.textContent).toBe("Shared campaign · Second model · Worker two");
   });
 
   it.each(["batches", null])("bounds the compact job list and preserves evaluation unit %s in the expanded list", (unit) => {
@@ -309,7 +346,8 @@ describe("per-device evaluation", () => {
     expect(more?.open).toBe(false);
     expect(more?.querySelector("summary")?.textContent).toBe("More evaluations (1)");
     act(() => { more!.open = true; });
-    expect(more?.textContent).toContain("Image classification · Vision model");
+    expect(more?.textContent).toContain("Image classification");
+    expect(more?.textContent).not.toContain("Vision model");
     expect(more?.textContent).toContain(`25 / 100${unit ? ` ${unit}` : ""}`);
     expect(more?.textContent).toContain("Throughput 54 images/s");
     expect(more?.textContent).not.toContain("prompts/min");

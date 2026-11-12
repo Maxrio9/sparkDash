@@ -22,6 +22,13 @@ training stops, follows evaluation in its automatic view and retains manual stag
 choices. Terminal or stale results do not keep it open. This changes monitoring
 visibility and discovery priority, not training/evaluation control or metric values.
 
+Preview 4 simplifies the main training and device evaluation views. Hardware
+identifiers and routine health/update prose are omitted, while progress, scores,
+reported speed/concurrency, blockers and finish estimates remain prominent.
+Warning reasons, scoring methodology, exact score tables and additional custom
+metrics use collapsed disclosures. Collection and API resource metadata remain
+unchanged. Preview images continue to use synthetic data only.
+
 ## Modified upstream files
 
 - `.dockerignore`

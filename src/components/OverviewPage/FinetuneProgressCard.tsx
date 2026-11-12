@@ -35,32 +35,9 @@ function metricValue(value: number | string | null) {
   return value === null ? "—" : typeof value === "number" ? loss.format(value) : value;
 }
 
-function ResourceList({ resources, label }: { resources: NonNullable<FinetuneStage["resources"]>; label: string }) {
-  const { t } = useTranslation("training");
-  const names = { cpu: "CPU", gpu: "GPU", accelerator: t("resource.accelerator") };
-  const rows = (items: typeof resources) => (
-    <ul className="ov-finetune-resources" aria-label={label}>
-      {items.map((resource, index) => (
-        <li key={`${resource.kind}:${resource.id}:${index}`} title={`${names[resource.kind]} ${resource.id}`}>
-          <span>{resource.scope === "affinity" ? t("resource.affinity") : resource.scope === "visible" ? t("resource.visible") : resource.scope === "assigned" ? t("resource.assigned") : t("resource.reported")}</span>
-          {resource.label ?? `${names[resource.kind]} ${resource.id}`}
-        </li>
-      ))}
-    </ul>
-  );
-  return resources.length ? (
-    <div className="ov-finetune-resource-list">
-      {rows(resources.slice(0, 3))}
-      {resources.length > 3 ? <details className="ov-finetune-details">
-        <summary>{t("resource.more", { count: resources.length - 3 })}</summary>
-        {rows(resources.slice(3))}
-      </details> : null}
-    </div>
-  ) : null;
-}
-
 function StageDependencies({ dependencies }: { dependencies: NonNullable<FinetuneStage["dependencies"]> }) {
   const { t } = useTranslation("training");
+  const blocking = dependencies.filter((dependency) => dependency.state === "waiting" || dependency.state === "failed");
   const labels = { waiting: t("status.waiting"), ready: t("status.ready"), failed: t("status.failed"), unknown: t("status.unknown") };
   const tones = { waiting: "tag--warn", ready: "tag--good", failed: "tag--bad", unknown: "" };
   const rows = (items: typeof dependencies) => <ul className="ov-finetune-dependencies" aria-label={t("input.required")}>
@@ -68,13 +45,12 @@ function StageDependencies({ dependencies }: { dependencies: NonNullable<Finetun
       <span>{dependency.label}</span><span className={`tag ${tones[dependency.state]}`}>{labels[dependency.state]}</span>
     </li>)}
   </ul>;
-  return dependencies.length ? (
+  return blocking.length ? (
     <div className="ov-finetune-inputs">
-      <span className="ov-finetune-stage__detail">{t("input.title")}</span>
-      {rows(dependencies.slice(0, 3))}
-      {dependencies.length > 3 ? <details className="ov-finetune-details">
-        <summary>{t("input.more", { count: dependencies.length - 3 })}</summary>
-        {rows(dependencies.slice(3))}
+      {rows(blocking.slice(0, 3))}
+      {blocking.length > 3 ? <details className="ov-finetune-details">
+        <summary>{t("input.more", { count: blocking.length - 3 })}</summary>
+        {rows(blocking.slice(3))}
       </details> : null}
     </div>
   ) : null;
@@ -84,7 +60,6 @@ function StageRow({ stage, stale, resultMetrics, observedAt }: {
   stage: FinetuneStage; stale: boolean; resultMetrics: boolean; observedAt: number | null;
 }) {
   const { t, i18n } = useTranslation("training");
-  const time = new Intl.DateTimeFormat(i18n.language, { hour: "2-digit", minute: "2-digit" });
   const finishTime = new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
   const [label, tone] = statusLabels(t)[stage.state];
   const quantity = stageCount(stage);
@@ -92,17 +67,27 @@ function StageRow({ stage, stale, resultMetrics, observedAt }: {
     ? { value: stage.completed, max: stage.total }
     : null;
   const showProgress = stage.state !== "complete" && (measured || (stage.state === "running" && !stale));
-  const showTimestamp = stage.state === "running" || stage.state === "complete" || (stage.state === "waiting" && stage.completed != null);
-  const updated = showTimestamp && stage.updatedAt != null ? new Date(stage.updatedAt) : null;
+  const updated = stage.state === "complete" && stage.updatedAt != null ? new Date(stage.updatedAt) : null;
   const health = stale ? undefined : stage.health;
   const healthProblem = health?.state === "stalled" || health?.state === "unresponsive";
   const eta = stage.state === "running" && !stale && !healthProblem && stage.etaSeconds != null ? stage.etaSeconds : null;
   const finish = eta !== null && observedAt !== null ? new Date(observedAt + eta * 1000) : null;
+  const sameText = (a: string | undefined, b: string | undefined) => a?.trim().toLowerCase() === b?.trim().toLowerCase();
+  const activity = stage.activity && !sameText(stage.activity.label, stage.label) ? stage.activity : null;
+  const detail = stage.detail && !sameText(stage.detail, stage.activity?.label) ? stage.detail : null;
+  const inlineDetail = detail && (["failed", "stopped", "unknown", "waiting"].includes(stage.state)
+    || (stage.state === "running" && !activity)) ? detail : null;
+  const extraDetail = detail && !inlineDetail ? detail : null;
+  const activityFailure = stage.state === "failed" && stage.activity?.detail
+    && !sameText(stage.activity.detail, stage.detail) && !sameText(stage.activity.detail, stage.activity.label)
+    ? stage.activity.detail : null;
+  const metrics = !resultMetrics ? stage.metrics ?? [] : [];
+  const extraMetrics = metrics.slice(3);
   const metadata = [
     stage.loss != null && t("stage.loss", { value: loss.format(stage.loss) }),
     stage.latestCheckpoint != null && t("stage.latest", { value: count.format(stage.latestCheckpoint) }),
     stage.nextCheckpoint != null && t("stage.next", { value: count.format(stage.nextCheckpoint) }),
-    ...(!resultMetrics ? stage.metrics ?? [] : []).map(({ label, value, unit }) =>
+    ...metrics.slice(0, 3).map(({ label, value, unit }) =>
       `${label} ${metricValue(value)}${unit ? ` ${unit}` : ""}`),
   ].filter(Boolean).join(" · ");
 
@@ -114,24 +99,19 @@ function StageRow({ stage, stale, resultMetrics, observedAt }: {
           {stale && stage.state === "running" ? t("stage.lastRunning") : label}
         </span>
       </div>
-      {stage.activity ? <div className="ov-finetune-activity" data-activity={stage.activity.kind}>
-        <span>{stale ? t("stage.lastActivity") : t("stage.activity")}</span>
-        <b>{stage.activity.label}</b>
-        {stage.activity.detail ? <span>{stage.activity.detail}</span> : null}
+      {activity ? <div className="ov-finetune-activity" data-activity={activity.kind}>
+        <b>{activity.label}</b>
       </div> : null}
-      {stage.resources?.length ? <ResourceList resources={stage.resources} label={t("resource.label", { label: stage.label })} /> : null}
       {quantity ? (
         <div className="ov-finetune-stage__line ov-finetune-stage__quantity mono">
           <span>{quantity}</span>
           {stage.state !== "complete" && measured ? <span>{Math.floor(100 * measured.value / measured.max)}%</span> : null}
         </div>
       ) : null}
-      {health ? <div className="ov-finetune-health" data-health={health.state}>
-        <span className={healthProblem ? "tag tag--warn" : "ov-finetune-stage__detail"}>
-          {({ healthy: t("health.healthy"), waiting: t("health.waiting"), stalled: t("health.stalled"), unresponsive: t("health.unresponsive"), unknown: t("health.unknown") })[health.state]}
-        </span>
-        <span className="ov-finetune-stage__detail">{health.detail}</span>
-      </div> : null}
+      {healthProblem && health ? <details className="ov-finetune-health" data-health={health.state}>
+        <summary><span className="tag tag--warn">{health.state === "stalled" ? t("health.stalled") : t("health.unresponsive")}</span></summary>
+        <p className="ov-finetune-stage__detail">{health.detail}</p>
+      </details> : null}
       {showProgress ? (
         <progress
           className="ov-finetune-progress"
@@ -161,11 +141,27 @@ function StageRow({ stage, stale, resultMetrics, observedAt }: {
           ))}
         </dl>
       ) : null}
-      {stage.detail ? <span className="ov-finetune-stage__detail">{stage.detail}</span> : null}
+      {extraMetrics.length > 0 ? <details className="ov-finetune-details">
+        <summary>{t("stage.moreMetrics", { count: extraMetrics.length })}</summary>
+        <dl className="ov-finetune-statistics" aria-label={t("stage.statistics", { label: stage.label })}>
+          {extraMetrics.map(({ label, value, unit }, index) => (
+            <div key={`${label}-${index}`}>
+              <dt>{label}</dt>{" "}
+              <dd className="mono">{metricValue(value)}{unit ? ` ${unit}` : ""}</dd>
+            </div>
+          ))}
+        </dl>
+      </details> : null}
+      {inlineDetail ? <span className="ov-finetune-stage__detail">{inlineDetail}</span> : null}
+      {activityFailure ? <span className="ov-finetune-stage__detail">{activityFailure}</span> : null}
+      {extraDetail ? <details className="ov-finetune-details">
+        <summary>{t("stage.details")}</summary>
+        <p>{extraDetail}</p>
+      </details> : null}
       {stage.dependencies?.length ? <StageDependencies dependencies={stage.dependencies} /> : null}
       {updated && Number.isFinite(updated.valueOf()) ? (
         <time className="ov-finetune-stage__detail" dateTime={updated.toISOString()} title={updated.toLocaleString()}>
-          {stage.state === "complete" ? t("stage.completedAt", { time: finishTime.format(updated) }) : t("stage.updatedAt", { time: time.format(updated) })}
+          {t("stage.completedAt", { time: finishTime.format(updated) })}
         </time>
       ) : null}
     </li>
@@ -277,7 +273,6 @@ function SourceStages({ source, group, requestFailed }: {
           </span>
         ) : null}
       </div>
-      {source.resources?.length ? <ResourceList resources={source.resources} label={t("resource.label", { label: source.label })} /> : null}
       {stages.length === 0 ? (
         <p className="ov-finetune-empty">
           {source.status === "live" && !requestFailed ? t("source.noProgress") : t("source.waiting")}
